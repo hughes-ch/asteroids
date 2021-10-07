@@ -1,4 +1,3 @@
--e git+ssh://git@github.com/hughes-ch/asteroids.git@31c9b8324244a9a6665af36f350b4120d7da47d0#egg=asteroids
 attrs==21.2.0
 beautifulsoup4==4.10.0
 click==8.0.1
