@@ -5,7 +5,7 @@ coverage==6.0
 Flask==2.0.2
 iniconfig==1.1.1
 itsdangerous==2.0.1
--e git+git://github.com/hughes-ch/asteroids@4830a5e8b23a3387260f7d2975671a8242c8604a#egg=javascript_asteroids
+-e git+ssh://git@github.com/hughes-ch/asteroids.git@31c9b8324244a9a6665af36f350b4120d7da47d0#egg=javascript_asteroids
 Jinja2==3.0.2
 MarkupSafe==2.0.1
 packaging==21.0
