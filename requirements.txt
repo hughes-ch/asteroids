@@ -1,0 +1,20 @@
+attrs==21.2.0
+beautifulsoup4==4.10.0
+click==8.0.1
+coverage==6.0
+Flask==2.0.2
+iniconfig==1.1.1
+itsdangerous==2.0.1
+-e git+git://github.com/hughes-ch/asteroids@4830a5e8b23a3387260f7d2975671a8242c8604a#egg=javascript_asteroids
+Jinja2==3.0.2
+MarkupSafe==2.0.1
+packaging==21.0
+pluggy==1.0.0
+py==1.10.0
+pyparsing==2.4.7
+pytest==6.2.5
+pytest-cov==3.0.0
+soupsieve==2.2.1
+toml==0.10.2
+tomli==1.2.1
+Werkzeug==2.0.2
