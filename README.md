@@ -1,3 +1,5 @@
+[![hughes-ch](https://circleci.com/gh/hughes-ch/asteroids.svg?style=shield)](https://app.circleci.com/pipelines/github/hughes-ch/asteroids)
+
 # Asteroids
 A single page web app implementation of the classic game of Asteroids.
 
