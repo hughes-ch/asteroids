@@ -1,4 +1,4 @@
-asteroids==0.0.1
+-e git+ssh://git@github.com/hughes-ch/asteroids.git@a47906c607c0452a807ca7891c7991a121941f8e#egg=asteroids
 attrs==21.2.0
 beautifulsoup4==4.10.0
 click==8.0.1
@@ -6,7 +6,7 @@ coverage==6.0
 Flask==2.0.2
 iniconfig==1.1.1
 itsdangerous==2.0.1
--e git+ssh://git@github.com/hughes-ch/asteroids.git@d539b8949d3d290bcc427aed98b9f94e8c727ee2#egg=javascript_asteroids
+-e git+ssh://git@github.com/hughes-ch/asteroids.git@a47906c607c0452a807ca7891c7991a121941f8e#egg=javascript_asteroids
 Jinja2==3.0.2
 MarkupSafe==2.0.1
 packaging==21.0
