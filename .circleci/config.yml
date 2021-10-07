@@ -1,0 +1,19 @@
+version: 2.1
+
+jobs:
+  unit-test:
+    docker:
+      - image: cimg/python:3.10.0
+
+    steps:
+      - run:
+          name: "Install"
+          command: "pip install -r requirements.txt"
+      - run:
+          name: "Start unit tests"
+          command: "pytest --cov=src"
+
+workflows:
+  unit-test-workflow:
+    jobs:
+      - unit-test
