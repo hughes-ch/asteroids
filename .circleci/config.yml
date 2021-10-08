@@ -6,18 +6,35 @@ orbs:
 jobs:
   test-python:
     docker:
-      - image: cimg/python:3.10
+      - image: cimg/python:3.10-node
       
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: pip
+      - run:
+          name: Installing environment
+          command: yarn api-install
 
       - run:
-          name: Run tests
-          command: pytest --cov=src
+          name: Testing Python
+          command: yarn api-test
+
+  test-js:
+    docker:
+      - image: cimg/node:16.10.0
+
+    steps:
+      - checkout
+
+      - run:
+         name: Installing environment
+         command: yarn install
+
+      - run:
+         name: Testing Javascript
+         command: yarn test
 
 workflows:
   sample: 
     jobs:
+      - test-js
       - test-python

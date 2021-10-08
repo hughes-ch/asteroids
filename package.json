@@ -1,0 +1,26 @@
+{
+  "name": "javascript-asteroids",
+  "version": "0.0.1",
+  "description": "A single page application of the game of Asteroids.",
+  "main": "app.js",
+  "repository": "git@github.com:hughes-ch/asteroids.git",
+  "author": "hughes-ch <contact@chrishughesdev.com>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "@babel/preset-env": "^7.15.8",
+    "babel": "^6.23.0",
+    "jest": "^27.2.4"
+  },
+  "scripts": {
+    "api-test": "pytest -v --cov=api/src --cov-report=term-missing",
+    "api-install": "pip install -r api/requirements.txt",
+    "test": "jest --coverage",
+    "start-flask": "export FLASK_APP=api/src; export FLASK_ENV='development'; flask run --host 0.0.0.0"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env"
+    ]
+  }
+}
