@@ -6,6 +6,7 @@
  *
  */
 import * as containers from '../src/modules/containers.js'
+import {Spaceship} from '../src/modules/model.js'
 import * as view from '../src/modules/view.js';
 
 beforeEach(() => {
@@ -30,7 +31,67 @@ test('Test view with nothing in input queue', () => {
 });
 
 test('Test view with full queue', () => {
-  // Fill several frames
-  // Make sure resetCanvas called for each frame
-  // Make sure each object is drawn with correct coordinates
+  // Create objects
+  let objects = [
+    [
+      new Spaceship([100, 100]),
+      new Spaceship([200, 200]),
+      new Spaceship([300, 300])
+    ],
+    [
+      new Spaceship([150, 150]),
+      new Spaceship([250, 250])
+    ],
+    [
+      new Spaceship([175, 175]),
+      new Spaceship([275, 275]),
+      new Spaceship([375, 375])
+    ]
+  ];
+
+  // Fill frames
+  let frames = [];
+  let queue = new containers.Queue();
+
+  for (let ii = 0; ii < objects.length; ii++)
+  {
+    frames.push(new containers.Frame());
+    
+    for (let jj = 0; jj < objects[ii].length; jj++)
+    {
+      frames[ii].add(objects[ii][jj]);
+    }
+
+    queue.enqueue(frames[ii]);
+  }
+  
+  // Mock functions and render canvas
+  let gameView = new view.View(queue);
+  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas')
+    .mockImplementation(() => undefined);
+  let mockDrawObject = jest.spyOn(gameView._canvas, 'drawObject')
+    .mockImplementation(() => undefined);
+
+  for (let ii = 0; ii < frames.length; ii++)
+  {
+    gameView.renderCanvas();
+    
+    // Make sure each object is drawn with correct coordinates
+    let lastObjInFrame = objects[ii][objects[ii].length-1].decompose();
+    let objTranslation = lastObjInFrame.translation;
+    let objVertices = lastObjInFrame.vertices;
+
+    let expectedDrawCoords = [];
+    for (let vertex of Array.from(objVertices)) {
+      expectedDrawCoords.push([
+        vertex[0] + objTranslation[0],
+        vertex[1] + objTranslation[1]
+      ]);
+    }
+
+    expect(mockDrawObject).toHaveBeenLastCalledWith(expectedDrawCoords);
+  }
+
+  // Check canvas is reset between frames
+  expect(mockResetCanvas).toHaveBeenCalledTimes(frames.length);
 }); 
