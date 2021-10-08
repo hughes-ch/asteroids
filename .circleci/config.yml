@@ -5,6 +5,8 @@ orbs:
 
 jobs:
   test-python:
+    working_directory: api
+
     docker:
       - image: cimg/python:3.10
       
@@ -14,10 +16,26 @@ jobs:
           pkg-manager: pip
 
       - run:
-          name: Run tests
-          command: pytest --cov=src
+          name: Testing Python
+          command: pytest -v --cov=src --cov-report=term-missing
+
+  test-js:
+    docker:
+      - image: cimg/node:16.10.0
+
+    steps:
+      - checkout
+
+      - run:
+         name: Installing environment
+         command: yarn install
+
+      - run:
+         name: Testing Javascript
+         command: yarn test
 
 workflows:
   sample: 
     jobs:
+      - test-js
       - test-python
