@@ -12,8 +12,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>{{ page_title }}</title>
+
+    <link rel='stylesheet' href='{{ url_for("static", filename="css/styles.css") }}' />
   </head>
   <body>
-    <p>Hello world!</p>
+    <canvas id='canvas'></canvas>
+    <script
+      src='{{ url_for("routes.serve_js", filename="app.js") }}'
+      type='module'
+      id='asteroids-entry'>
+    </script>
   </body>
 </html>
