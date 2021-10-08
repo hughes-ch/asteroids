@@ -12,6 +12,8 @@
  * Interacts with the HTML canvas.
  *
  */
+import * as math from 'mathjs'
+
 export class Canvas {
   
   /**
@@ -108,10 +110,8 @@ export class View {
       // Translate object model to correct coordinate
       let translatedCoordArray = [];
       for (let coordinate of Array.from(obj.vertices)) {
-        translatedCoordArray.push([
-          coordinate[0] + obj.translation[0],
-          coordinate[1] + obj.translation[1]
-        ]);
+        translatedCoordArray.push(
+          math.add(coordinate, obj.translation));
       }
 
       this._canvas.drawObject(translatedCoordArray);

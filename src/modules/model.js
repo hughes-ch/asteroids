@@ -8,6 +8,7 @@
  *
  */
 import * as containers from './containers.js'
+import * as math from 'mathjs'
 
 /**
  * A game object - not intended to be instantiated, but serve as a base class
@@ -18,13 +19,14 @@ export class GameObject {
   /**
    * Constructor
    *
-   * @param {Array} coordinates  Initial starting coordinates
    * @param {String} type        Type of object (spaceship, asteroid, etc)
+   * @param {Object} objParams   Characteristics of the new object
    * @return {GameObject}
    */
-  constructor(coordinates, type) {
-    this._coordinates = coordinates;
+  constructor(type, objParams) {
     this._type = type;
+    this._objParams = objParams;
+    this._lastUpdateTime = undefined;
   }
 
   /**
@@ -33,10 +35,31 @@ export class GameObject {
    * @return {undefined}
    */
   updateState() {
+    
+    // If an object hasn't been updated yet, set to current time to render
+    // it immobile for a single frame. 
+    if (!this._lastUpdateTime) {
+      this._lastUpdateTime = new Date();
+    }
+
+    // Determine movement vector
+    let currentTime = new Date();
+    let numSecSinceLastUpdate = (
+      currentTime.getTime() - this._lastUpdateTime.getTime())/1000;
+
+    let scaledMovementVect = math.multiply(
+      this._objParams.movement_vect,
+      numSecSinceLastUpdate);
+
+    this._objParams.coordinates = math.add(
+      this._objParams.coordinates, scaledMovementVect);
+
+    // Set last update time
+    this._lastUpdateTime = currentTime;
   }
 
   /**
-   * Calculates if an object collides with another
+   * calculates if an object collides with another
    *
    * @param {GameObject} obj Another game object
    * @return {Boolean}
@@ -61,7 +84,7 @@ export class GameObject {
    */
   decompose() {
     return {
-      translation: this._coordinates,
+      translation: this._objParams.coordinates,
       type: this._type,
       vertices: [
         [0, -24],
@@ -85,7 +108,15 @@ export class Spaceship extends GameObject {
    * @return {Spaceship}
    */
   constructor(coordinates) {
-    super(coordinates, 'spaceship');
+    let objParams = {
+      coordinates: coordinates,
+      drag: 0,
+      max_speed: 0,
+      max_thrust: 0,
+      movement_vect: [0, 4],
+      rotation: 0
+    };
+    super('spaceship', objParams);
   }
 };
 
@@ -110,7 +141,7 @@ export class Model {
       undefined,
       new GameStateModel(inputQueue, outputQueue),
       undefined
-    ]
+    ];
 
     this._currentState = this._gameStates[1];
   }

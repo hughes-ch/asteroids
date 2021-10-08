@@ -51,10 +51,10 @@ let asteroids_main = function() {
   let controlQueue = new containers.Queue();
 
   let gameModel = new model.Model(controlQueue, frameQueue);
-  gameModel.updateFrame();
-
   let gameView = new view.View(frameQueue);
-  gameView.renderCanvas();
+
+  setInterval(gameModel.updateFrame.bind(gameModel), 30);
+  setInterval(gameView.renderCanvas.bind(gameView), 30);
 };
 
 asteroids_main();
