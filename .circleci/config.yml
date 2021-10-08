@@ -6,7 +6,7 @@ orbs:
 jobs:
   test-python:
     docker:
-      - image: cimg/python:3.10
+      - image: cimg/python:3.10-node
       
     steps:
       - checkout
@@ -16,7 +16,7 @@ jobs:
 
       - run:
           name: Testing Python
-          command: pytest -v --cov=src --cov-report=term-missing
+          command: yarn api-test
 
   test-js:
     docker:
