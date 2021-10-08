@@ -5,15 +5,14 @@ orbs:
 
 jobs:
   test-python:
-    working_directory: api
-
     docker:
       - image: cimg/python:3.10
       
     steps:
       - checkout
-      - python/install-packages:
-          pkg-manager: pip
+      - run:
+          name: Installing environment
+          command: yarn api-install
 
       - run:
           name: Testing Python
