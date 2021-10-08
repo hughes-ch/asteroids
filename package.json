@@ -14,7 +14,7 @@
   },
   "scripts": {
     "api-test": "pytest -v --cov=api/src --cov-report=term-missing",
-    "api-test-report": "xdg-open api/test/.coverage/index.html",
+    "api-install": "pip install -r api/requirements.txt",
     "test": "jest --coverage",
     "start-flask": "export FLASK_APP=api/src; export FLASK_ENV='development'; flask run --host 0.0.0.0"
   },
