@@ -25,9 +25,9 @@ test('Test view with nothing in input queue', () => {
   let gameView = new view.View(inputQueue);
 
   let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas');
-
   gameView.renderCanvas();
   expect(mockResetCanvas).not.toHaveBeenCalled();
+  mockResetCanvas.mockRestore();
 });
 
 test('Test view with full queue', () => {
@@ -94,4 +94,7 @@ test('Test view with full queue', () => {
 
   // Check canvas is reset between frames
   expect(mockResetCanvas).toHaveBeenCalledTimes(frames.length);
+
+  mockResetCanvas.mockRestore();
+  mockDrawObject.mockRestore();
 }); 

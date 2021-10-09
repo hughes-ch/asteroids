@@ -39,6 +39,7 @@
 //     Can collide (true/false)
 
 import * as containers from './modules/containers.js'
+import * as control from './modules/controller.js'
 import * as model from './modules/model.js'
 import * as view from './modules/view.js'
 
@@ -50,6 +51,7 @@ let asteroids_main = function() {
   let frameQueue = new containers.Queue();
   let controlQueue = new containers.Queue();
 
+  let controller = new control.Controller(controlQueue);
   let gameModel = new model.Model(controlQueue, frameQueue);
   let gameView = new view.View(frameQueue);
 

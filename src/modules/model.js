@@ -34,7 +34,7 @@ export class GameObject {
    *
    * @return {undefined}
    */
-  updateState() {
+  updateState(control) {
     
     // If an object hasn't been updated yet, set to current time to render
     // it immobile for a single frame. 
@@ -47,8 +47,14 @@ export class GameObject {
     let numSecSinceLastUpdate = (
       currentTime.getTime() - this._lastUpdateTime.getTime())/1000;
 
+    if (control.thrust) {
+      this._objParams.movement = [0, this._objParams.maxSpeed];
+    } else {
+      this._objParams.movement = [0, 0];
+    }
+
     let scaledMovementVect = math.multiply(
-      this._objParams.movement_vect,
+      this._objParams.movement,
       numSecSinceLastUpdate);
 
     this._objParams.coordinates = math.add(
@@ -87,9 +93,9 @@ export class GameObject {
       translation: this._objParams.coordinates,
       type: this._type,
       vertices: [
-        [0, -24],
-        [10, 0],
-        [-10, 0]
+        [0, 24],
+        [-10, 0],
+        [10, 0]
       ]
     };
   }
@@ -111,9 +117,9 @@ export class Spaceship extends GameObject {
     let objParams = {
       coordinates: coordinates,
       drag: 0,
-      max_speed: 0,
-      max_thrust: 0,
-      movement_vect: [0, 4],
+      maxSpeed: 100,
+      maxThrust: 0,
+      movement: [0, 0],
       rotation: 0
     };
     super('spaceship', objParams);
@@ -173,6 +179,7 @@ class GameStateModel {
   constructor(inputQueue, outputQueue) {
     this._inputQueue = inputQueue;
     this._outputQueue = outputQueue;
+    this._lastControl = undefined;
 
     this._objectList = [
       new Spaceship([100, 100]),
@@ -186,9 +193,25 @@ class GameStateModel {
    */
   updateFrame() {
 
+    // Determine current control. If there isn't one, use the last
+    if (!this._lastControl) {
+      this._lastControl = {
+        rotate: 0,
+        thrust: false,
+        shoot: false
+      };
+    }
+
+    let control = this._lastControl;
+    if (this._inputQueue.length > 0)
+    {
+      control = this._inputQueue.dequeue();
+      this._lastControl = control;
+    }
+
     // Calculate movements and collisions
     for (let obj of Array.from(this._objectList)) {
-      obj.updateState();
+      obj.updateState(control);
 
       for (let remoteObj of Array.from(this._objectList)) {
         if (obj.collidesWith(remoteObj)) {
