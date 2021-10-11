@@ -12,6 +12,15 @@
  * Detects key events and converts them to game inputs
  *
  */
+import {Enumify} from 'enumify'
+
+export class RotateState extends Enumify {
+  static ccw = new RotateState();
+  static cw = new RotateState();
+  static none = new RotateState();
+  static _ = this.closeEnum();
+};
+
 export class Controller {
 
   /**
@@ -25,7 +34,7 @@ export class Controller {
     this._addEventListeners();
 
     this._currentControlState = {
-      rotate: 0,
+      rotate: RotateState.none,
       thrust: false,
       shoot: false
     };
@@ -69,6 +78,26 @@ export class Controller {
         }
         break;
         
+      // Rotate clockwise 
+      case "KeyD":
+      case "ArrowRight":
+        if (type === 'down') {
+          this._currentControlState.rotate = RotateState.cw;
+        } else {
+          this._currentControlState.rotate = RotateState.none;
+        }
+        break;
+
+      // Rotate counter-clockwise
+      case "KeyA":
+      case "ArrowLeft":
+        if (type === 'down') {
+          this._currentControlState.rotate = RotateState.ccw;
+        } else {
+          this._currentControlState.rotate = RotateState.none;
+        }
+        break;
+
       default:
         return;
     }

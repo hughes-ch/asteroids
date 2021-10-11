@@ -30,9 +30,9 @@ test('Test dequeuing an empty queue', () => {
 
 test('Test Frame iteration', () => {
   let objects = [
-    new model.Spaceship([100, 100]),
-    new model.Spaceship([200, 200]),
-    new model.Spaceship([300, 300])
+    new model.Spaceship([100, 100], 0),
+    new model.Spaceship([200, 200], 50),
+    new model.Spaceship([300, 300], 100)
   ];
 
   let frame = new containers.Frame();

@@ -34,18 +34,18 @@ test('Test view with full queue', () => {
   // Create objects
   let objects = [
     [
-      new Spaceship([100, 100]),
-      new Spaceship([200, 200]),
-      new Spaceship([300, 300])
+      new Spaceship([100, 100], 0),
+      new Spaceship([200, 200], 50),
+      new Spaceship([300, 300], 100)
     ],
     [
-      new Spaceship([150, 150]),
-      new Spaceship([250, 250])
+      new Spaceship([150, 150], 0),
+      new Spaceship([250, 250], 50)
     ],
     [
-      new Spaceship([175, 175]),
-      new Spaceship([275, 275]),
-      new Spaceship([375, 375])
+      new Spaceship([175, 175], 0),
+      new Spaceship([275, 275], 50),
+      new Spaceship([375, 375], 100)
     ]
   ];
 

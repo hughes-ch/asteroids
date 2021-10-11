@@ -94,7 +94,7 @@ export class View {
    * @return {undefined}
    */
   renderCanvas() {
-    
+
     // Don't touch canvas if nothing is in the queue
     if (this._inputQueue.length === 0) {
       return;

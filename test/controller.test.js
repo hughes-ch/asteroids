@@ -62,3 +62,52 @@ test('Test thruster', () => {
   }
 });
 
+test('Test CW rotation', () => {
+  for (let key of ['ArrowRight', 'KeyD']) {
+    for (let keyState of ['down', 'up']) {
+      
+      let queue = new containers.Queue();
+      let controller = new control.Controller(queue);
+      let eventInfo = {
+        defaultPrevented: false,
+        code: key,
+        preventDefault: () => { undefined }
+      };
+
+      controller._handleKeyboardEvent(keyState, eventInfo);
+      expect(queue.length).toEqual(1);
+
+      let controlObj = queue.dequeue();
+      expect(controlObj.thrust).toBe(false);
+      expect(controlObj.rotate).toEqual(
+        keyState == 'down' ?
+          control.RotateState.cw :
+          control.RotateState.none);
+    }
+  }
+});
+
+test('Test CCW rotation', () => {
+  for (let key of ['ArrowLeft', 'KeyA']) {
+    for (let keyState of ['down', 'up']) {
+      
+      let queue = new containers.Queue();
+      let controller = new control.Controller(queue);
+      let eventInfo = {
+        defaultPrevented: false,
+        code: key,
+        preventDefault: () => { undefined }
+      };
+
+      controller._handleKeyboardEvent(keyState, eventInfo);
+      expect(queue.length).toEqual(1);
+
+      let controlObj = queue.dequeue();
+      expect(controlObj.thrust).toBe(false);
+      expect(controlObj.rotate).toEqual(
+        keyState == 'down' ?
+          control.RotateState.ccw :
+          control.RotateState.none);
+    }
+  }
+});

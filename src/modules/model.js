@@ -9,6 +9,8 @@
  */
 import * as containers from './containers.js'
 import * as math from 'mathjs'
+import * as objModels from './objModels.js'
+import {RotateState} from './controller.js'
 
 /**
  * A game object - not intended to be instantiated, but serve as a base class
@@ -19,14 +21,32 @@ export class GameObject {
   /**
    * Constructor
    *
-   * @param {String} type        Type of object (spaceship, asteroid, etc)
-   * @param {Object} objParams   Characteristics of the new object
+   * @param {objModels.ModelType} type      Type of object
+   * @param {Object}              objParams Characteristics of new object
    * @return {GameObject}
    */
   constructor(type, objParams) {
-    this._type = type;
-    this._objParams = objParams;
+    this._coordinates = objParams.coordinates;
     this._lastUpdateTime = undefined;
+    this._movement = objParams.movement;
+    this._rotation = objParams.rotation;
+    this._type = type;
+
+    switch (this._type) {
+      case objModels.ModelType.spaceship:
+        this._model = objModels.Spaceship;
+        break;
+
+      default:
+        {
+          let invalidObjTypeException = (message) => {
+            this.message = message;
+            this.name = 'InvalidObjTypeException';
+          };
+          throw new invalidObjTypeException(
+            `New object not created. Invalid type: ${this._type}`);
+        }
+    }
   }
 
   /**
@@ -42,23 +62,42 @@ export class GameObject {
       this._lastUpdateTime = new Date();
     }
 
-    // Determine movement vector
     let currentTime = new Date();
     let numSecSinceLastUpdate = (
       currentTime.getTime() - this._lastUpdateTime.getTime())/1000;
 
+    // Determine rotation 
+    const rotationMultiplier =
+          control.rotate == RotateState.none ? 0 : (
+            control.rotate == RotateState.cw ? 1 : -1
+          );
+
+    let scaledRotationChange =
+        rotationMultiplier * this._model.rotationSpeed * numSecSinceLastUpdate;
+
+    this._rotation += scaledRotationChange;
+
+    if (this._rotation > 360) {
+      this._rotation -= 360;
+    }
+    if (this._rotation < 0) {
+      this._rotation += 360;
+    }
+    
+    // Determine movement vector
     if (control.thrust) {
-      this._objParams.movement = [0, this._objParams.maxSpeed];
+      this._movement = [0, this._model.maxSpeed];
     } else {
-      this._objParams.movement = [0, 0];
+      this._movement = [0, 0];
     }
 
     let scaledMovementVect = math.multiply(
-      this._objParams.movement,
+      this._movement,
       numSecSinceLastUpdate);
 
-    this._objParams.coordinates = math.add(
-      this._objParams.coordinates, scaledMovementVect);
+    // Determine coordinates
+    this._coordinates = math.add(
+      this._coordinates, scaledMovementVect);
 
     // Set last update time
     this._lastUpdateTime = currentTime;
@@ -80,7 +119,7 @@ export class GameObject {
    * @return {[GameObject]} A list of gameObjects
    */
   destroy() {
-    return []
+    return [];
   }
 
   /**
@@ -89,15 +128,38 @@ export class GameObject {
    * @return {obj} Simple representation of GameObject
    */
   decompose() {
+    // Rotate model
+    const rotationInRad = this._rotation * Math.PI / 180;
+    const rotationMatrix = [
+      [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
+      [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
+    ];
+    
+    let rotatedModel = [];
+    for (let vertex of Array.from(this._model.vertices)) {
+      rotatedModel.push(math.multiply(rotationMatrix, vertex));
+    }
+
     return {
-      translation: this._objParams.coordinates,
+      translation: this._coordinates,
       type: this._type,
-      vertices: [
-        [0, 24],
-        [-10, 0],
-        [10, 0]
-      ]
+      vertices: rotatedModel
     };
+  }
+
+  /** 
+   * Normalize a rotation to between 0 and 360
+   *
+   * @return {number} between 0 and 360
+   */
+  _normalizeRotation(rotation) {
+    if (rotation > 360) {
+      return rotation - 360;
+    }
+    if (rotation < 360) {
+      return rotation + 360;
+    }
+    return rotation;
   }
 };
 
@@ -111,18 +173,16 @@ export class Spaceship extends GameObject {
    * Constructor
    *
    * @param {Array} coordinates  Initial starting coordinates
+   * @param {number} rotation    Initial rotation of object
    * @return {Spaceship}
    */
-  constructor(coordinates) {
+  constructor(coordinates, rotation) {
     let objParams = {
       coordinates: coordinates,
-      drag: 0,
-      maxSpeed: 100,
-      maxThrust: 0,
       movement: [0, 0],
-      rotation: 0
+      rotation: rotation
     };
-    super('spaceship', objParams);
+    super(objModels.ModelType.spaceship, objParams);
   }
 };
 
@@ -182,7 +242,7 @@ class GameStateModel {
     this._lastControl = undefined;
 
     this._objectList = [
-      new Spaceship([100, 100]),
+      new Spaceship([100, 100], 0),
     ];
   }
 
@@ -196,7 +256,7 @@ class GameStateModel {
     // Determine current control. If there isn't one, use the last
     if (!this._lastControl) {
       this._lastControl = {
-        rotate: 0,
+        rotate: RotateState.none,
         thrust: false,
         shoot: false
       };
