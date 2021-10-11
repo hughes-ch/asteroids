@@ -11,6 +11,23 @@ import * as model from '../src/modules/model.js'
 import * as objModels from '../src/modules/objModels.js'
 import {RotateState} from '../src/modules/controller.js'
 
+/**
+ * Utility function to calculate rotations
+ *
+ * @param {Array}  vector   Vector to rotate
+ * @param {Number} rotation Amount to rotate (deg)
+ * @return {Array} Rotated vector
+ */
+let rotateVect = (vector, rotation) => {
+  const rotationInRad = rotation * Math.PI / 180;
+  const rotationMatrix = [
+    [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
+    [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
+  ];
+
+  return math.multiply(rotationMatrix, vector);
+};
+
 test('Test object decomposition', () => {
   let coordinates = [100, 100];
   let spaceship = new model.Spaceship(coordinates, 0);
@@ -33,7 +50,7 @@ test('Test the GameStateModel initializes correctly', () => {
   expect(array[0].vertices[0][0]).not.toBeNaN();
 });
 
-test('Test that movement is calculated correctly with thruster on', () => {
+test('Test that movement is calculated correctly with quick thrust', () => {
   let origObjLocation = [100, 100];
   let spaceship = new model.Spaceship(origObjLocation, 0);
   let control = {
@@ -46,35 +63,58 @@ test('Test that movement is calculated correctly with thruster on', () => {
   // equal position to the origObjLocation. Note that we need to calculate
   // within tolerance since calculation uses Date objects.
   spaceship.updateState(control);
-  expect(spaceship._movement)
-    .toEqual([0, spaceship._model.maxSpeed])
 
   let tolerance = spaceship._model.maxSpeed/100;
-  let posDifference = math.subtract(
-    spaceship._coordinates, origObjLocation);
+  let velDifference = math.subtract(spaceship._movement, [0, 0]);
+  for (let velParam of velDifference) {
+    expect(velParam).toBeLessThan(tolerance);
+  }
 
+  let posDifference = math.subtract(spaceship._coordinates, origObjLocation);
   for (let coord of posDifference) {
     expect(coord).toBeLessThan(tolerance);
   }
+});
 
-  // Next, calculate with a time one second in past.
-  spaceship._lastUpdateTime = new Date(
-    spaceship._lastUpdateTime - 1000 /* ms */);
+test('Test that movement is calculated correctly with long thrust', () => {
+  // Request a thrusting, rotating spaceship
+  let origObjLocation = [100, 100];
+  let origRotation = 0;
+  let spaceship = new model.Spaceship(origObjLocation, origRotation);
+  let control = {
+    rotate: RotateState.cw,
+    thrust: true,
+    shoot: false
+  };
 
+  // Calculate expected velocity. Note that rotation calculation done in
+  // another unit test.
+  let msInPast = 500;
+  spaceship._lastUpdateTime = new Date(new Date().getTime() - msInPast);
   spaceship.updateState(control);
-  expect(spaceship._movement)
-    .toEqual([0, spaceship._model.maxSpeed])
+  
+  let percentOfSecond = msInPast / 1000;
+  let expectedVelocity = math.multiply(
+    rotateVect([0, spaceship._model.maxThrust], spaceship._rotation),
+    percentOfSecond);
 
-  let posEstimate = math.add(
-    origObjLocation, spaceship._movement);
+  let tolerance = 1;
+  let velDiff = math.abs(math.subtract(spaceship._movement, expectedVelocity));
+  
+  for (let velDiffComponent of Array.from(velDiff)) {
+    expect(velDiffComponent).toBeLessThan(tolerance);
+  }
 
-  posDifference = math.abs(
-    math.subtract(
-      spaceship._coordinates,
-      posEstimate));
+  // Calculate expected position.
+  let expectedPosition = math.add(
+    origObjLocation,
+    math.multiply(spaceship._movement, percentOfSecond));
 
-  for (let coord of posDifference) {
-    expect(coord).toBeLessThan(tolerance);
+  let posDiff = math.abs(
+    math.subtract(spaceship._coordinates, expectedPosition));
+  
+  for (let posDiffComponent of Array.from(posDiff)) {
+    expect(posDiffComponent).toBeLessThan(tolerance);
   }
 });
 
@@ -185,15 +225,9 @@ test('Test that vertices rotated in decomposition of GameObject', () => {
   let spaceship = new model.Spaceship([100, 100], rotation);
   const rotatedModel = spaceship.decompose().vertices;
 
-  const rotationInRad = rotation * Math.PI / 180;
-  const rotationMatrix = [
-    [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
-    [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
-  ];
-
   const objModel = objModels.Spaceship.vertices;
   for (let vertexIdx = 0; vertexIdx < objModel.length; vertexIdx++) {
-    const rotatedVertex = math.multiply(rotationMatrix, objModel[vertexIdx]);
+    const rotatedVertex = rotateVect(objModel[vertexIdx], rotation);
 
     for (let coordIdx = 0; coordIdx < rotatedVertex.length; coordIdx++) {
       expect(rotatedVertex[coordIdx])

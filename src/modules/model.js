@@ -67,37 +67,41 @@ export class GameObject {
       currentTime.getTime() - this._lastUpdateTime.getTime())/1000;
 
     // Determine rotation 
-    const rotationMultiplier =
+    const directionMultiplier =
           control.rotate == RotateState.none ? 0 : (
             control.rotate == RotateState.cw ? 1 : -1
           );
 
     let scaledRotationChange =
-        rotationMultiplier * this._model.rotationSpeed * numSecSinceLastUpdate;
+        directionMultiplier * this._model.rotationSpeed * numSecSinceLastUpdate;
 
     this._rotation += scaledRotationChange;
+    this._rotation = this._normalizeRotation(this._rotation);
 
-    if (this._rotation > 360) {
-      this._rotation -= 360;
+    // Determine acceleration
+    let accelerationVector = [0, 0];
+    
+    if (control.thrust) {
+      accelerationVector = this._rotateVector(
+        [0, this._model.maxThrust],
+        this._rotation);
     }
-    if (this._rotation < 0) {
-      this._rotation += 360;
-    }
+
+    let scaledAccelerationVector = math.multiply(
+      accelerationVector,
+      numSecSinceLastUpdate);
     
     // Determine movement vector
     if (control.thrust) {
-      this._movement = [0, this._model.maxSpeed];
+      this._movement = math.add(this._movement, scaledAccelerationVector);
     } else {
       this._movement = [0, 0];
     }
 
-    let scaledMovementVect = math.multiply(
-      this._movement,
-      numSecSinceLastUpdate);
-
     // Determine coordinates
     this._coordinates = math.add(
-      this._coordinates, scaledMovementVect);
+      this._coordinates,
+      math.multiply(this._movement, numSecSinceLastUpdate));
 
     // Set last update time
     this._lastUpdateTime = currentTime;
@@ -128,22 +132,16 @@ export class GameObject {
    * @return {obj} Simple representation of GameObject
    */
   decompose() {
-    // Rotate model
-    const rotationInRad = this._rotation * Math.PI / 180;
-    const rotationMatrix = [
-      [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
-      [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
-    ];
-    
+    // Rotate object model
     let rotatedModel = [];
     for (let vertex of Array.from(this._model.vertices)) {
-      rotatedModel.push(math.multiply(rotationMatrix, vertex));
+      rotatedModel.push(this._rotateVector(vertex, this._rotation));
     }
 
     return {
       translation: this._coordinates,
       type: this._type,
-      vertices: rotatedModel
+      vertices: rotatedModel,
     };
   }
 
@@ -156,10 +154,27 @@ export class GameObject {
     if (rotation > 360) {
       return rotation - 360;
     }
-    if (rotation < 360) {
+    if (rotation < 0) {
       return rotation + 360;
     }
     return rotation;
+  }
+
+  /**
+   * Rotates a vector
+   *
+   * @param {Array} vector    Vector to rotate
+   * @param {Number} rotation Amount to rotate
+   * @return {Array} Rotated vector
+   */
+  _rotateVector(vector, rotation) {
+    const rotationInRad = rotation * Math.PI / 180;
+    const rotationMatrix = [
+      [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
+      [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
+    ];
+    
+    return math.multiply(rotationMatrix, vector);
   }
 };
 
