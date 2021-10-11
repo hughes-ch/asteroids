@@ -23,7 +23,7 @@ let asteroids_main = function() {
   let gameModel = new model.Model(controlQueue, frameQueue);
   let gameView = new view.View(frameQueue);
 
-  setInterval(gameModel.updateFrame.bind(gameModel), 15);
+  setInterval(gameModel.updateFrame.bind(gameModel), 30);
   setInterval(gameView.renderCanvas.bind(gameView), 30);
 };
 

@@ -59,6 +59,8 @@ test('Test that movement is calculated correctly with quick thrust', () => {
     shoot: false
   };
 
+  debugger;
+
   // First, calculate with uninitialized time. This should give an approx
   // equal position to the origObjLocation. Note that we need to calculate
   // within tolerance since calculation uses Date objects.
@@ -240,4 +242,37 @@ test('Test that invalid object types result in exception', () => {
   expect(() => {
     new model.GameObject('notAType', {});
   }).toThrow();
+});
+
+test('Test drag', () => {
+  // Initialize moving object
+  let origObjLocation = [100, 100];
+  let origRotation = 0;
+  let spaceship = new model.Spaceship(origObjLocation, origRotation);
+  let control = {
+    rotate: RotateState.none,
+    thrust: false,
+    shoot: false,
+  };
+
+  let currentMovementVect = [100, 100];
+  spaceship._movement = currentMovementVect;
+
+  let msInPast = 300;
+  spaceship._lastUpdateTime = new Date(new Date().getTime() - msInPast);
+  spaceship.updateState(control);
+
+  // Calculate expected velocity. 
+  let percentOfSecond = msInPast / 1000;
+  let dragEffect = math.multiply(
+    math.multiply(spaceship._movement, spaceship._model.drag),
+    percentOfSecond);
+
+  let expectedVelocity = math.subtract(currentMovementVect, dragEffect);
+  let tolerance = 1;
+  let velDiff = math.abs(math.subtract(spaceship._movement, expectedVelocity));
+  
+  for (let velDiffComponent of Array.from(velDiff)) {
+    expect(velDiffComponent).toBeLessThan(tolerance);
+  }
 });

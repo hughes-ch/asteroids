@@ -90,13 +90,18 @@ export class GameObject {
     let scaledAccelerationVector = math.multiply(
       accelerationVector,
       numSecSinceLastUpdate);
+
+    // Determine drag
+    let dragEffect = math.multiply(
+      math.multiply(this._movement, this._model.drag),
+      numSecSinceLastUpdate);
     
     // Determine movement vector
     if (control.thrust) {
       this._movement = math.add(this._movement, scaledAccelerationVector);
-    } else {
-      this._movement = [0, 0];
     }
+
+    this._movement = math.subtract(this._movement, dragEffect);
 
     // Determine coordinates
     this._coordinates = math.add(
@@ -169,12 +174,7 @@ export class GameObject {
    */
   _rotateVector(vector, rotation) {
     const rotationInRad = rotation * Math.PI / 180;
-    const rotationMatrix = [
-      [Math.cos(rotationInRad), -Math.sin(rotationInRad)],
-      [Math.sin(rotationInRad),  Math.cos(rotationInRad)]
-    ];
-    
-    return math.multiply(rotationMatrix, vector);
+    return math.rotate(vector, rotationInRad);
   }
 };
 

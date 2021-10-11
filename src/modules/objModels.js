@@ -13,9 +13,9 @@ export class ModelType extends Enumify {
 };
 
 export const Spaceship = {
-  drag: 0,
+  drag: 0.1,
   maxSpeed: 250, /* px/sec */
-  maxThrust: 250,
+  maxThrust: 500,
   rotationSpeed: 360 /* deg/sec */,
   vertices: [
     [0, 12],
