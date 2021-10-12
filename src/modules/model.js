@@ -68,6 +68,19 @@ export class GameObject {
       this._coordinates,
       math.multiply(this._movement, numSecSinceLastUpdate));
 
+    // Determine wrapped coordinates
+    if (control.windowSize.every((size) => size < Infinity)) {
+      for (let ii = 0; ii < this._coordinates.length; ii++) {
+
+        if (this._coordinates[ii] > control.windowSize[ii]) {
+          this._coordinates[ii] = 0;
+          
+        } else if (this._coordinates[ii] < 0) {
+          this._coordinates[ii] = control.windowSize[ii];
+        }
+      }
+    }
+
     // Update child objects
     this._childObjects.forEach((childObj) => {
       childObj.updateState(control, numSecSinceLastUpdate);

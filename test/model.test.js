@@ -303,3 +303,24 @@ test('Test window resizing', () => {
   let frame = outputQueue.dequeue();
   expect(frame.windowSize).toEqual(control.windowSize);
 });
+
+test('Test screen wrap', () => {
+  let control = new intf.Control();
+  control.windowSize = [100, 100];
+
+  let origCoordinates = [50, 99];
+  let spaceship = new model.Spaceship(origCoordinates, 0);
+  spaceship._movement = [0, 10];
+  spaceship.updateState(control, 1);
+
+  expect(spaceship._coordinates[0]).toEqual(origCoordinates[0]);
+  expect(spaceship._coordinates[1]).toEqual(0);
+
+  origCoordinates = [50, 1];
+  spaceship = new model.Spaceship(origCoordinates, 0);
+  spaceship._movement = [0, -10];
+  spaceship.updateState(control, 1);
+
+  expect(spaceship._coordinates[0]).toEqual(origCoordinates[0]);
+  expect(spaceship._coordinates[1]).toEqual(control.windowSize[1]);
+});
