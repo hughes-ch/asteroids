@@ -28,10 +28,14 @@ let rotateVect = (vector, rotation) => {
   return math.multiply(rotationMatrix, vector);
 };
 
+/**
+ * Unit tests
+ *
+ */
 test('Test object decomposition', () => {
   let coordinates = [100, 100];
   let spaceship = new model.Spaceship(coordinates, 0);
-  let object = spaceship.decompose();
+  let object = spaceship.decompose()[0];
   
   expect(object.translation).toEqual(coordinates);
 });
@@ -50,35 +54,7 @@ test('Test the GameStateModel initializes correctly', () => {
   expect(array[0].vertices[0][0]).not.toBeNaN();
 });
 
-test('Test that movement is calculated correctly with quick thrust', () => {
-  let origObjLocation = [100, 100];
-  let spaceship = new model.Spaceship(origObjLocation, 0);
-  let control = {
-    rotate: 0,
-    thrust: true,
-    shoot: false
-  };
-
-  debugger;
-
-  // First, calculate with uninitialized time. This should give an approx
-  // equal position to the origObjLocation. Note that we need to calculate
-  // within tolerance since calculation uses Date objects.
-  spaceship.updateState(control);
-
-  let tolerance = spaceship._model.maxSpeed/100;
-  let velDifference = math.subtract(spaceship._movement, [0, 0]);
-  for (let velParam of velDifference) {
-    expect(velParam).toBeLessThan(tolerance);
-  }
-
-  let posDifference = math.subtract(spaceship._coordinates, origObjLocation);
-  for (let coord of posDifference) {
-    expect(coord).toBeLessThan(tolerance);
-  }
-});
-
-test('Test that movement is calculated correctly with long thrust', () => {
+test('Test that movement is calculated correctly with thrust', () => {
   // Request a thrusting, rotating spaceship
   let origObjLocation = [100, 100];
   let origRotation = 0;
@@ -91,14 +67,12 @@ test('Test that movement is calculated correctly with long thrust', () => {
 
   // Calculate expected velocity. Note that rotation calculation done in
   // another unit test.
-  let msInPast = 500;
-  spaceship._lastUpdateTime = new Date(new Date().getTime() - msInPast);
-  spaceship.updateState(control);
+  let elapsedSeconds = 0.5
+  spaceship.updateState(control, elapsedSeconds);
   
-  let percentOfSecond = msInPast / 1000;
   let expectedVelocity = math.multiply(
     rotateVect([0, spaceship._model.maxThrust], spaceship._rotation),
-    percentOfSecond);
+    elapsedSeconds);
 
   let tolerance = 1;
   let velDiff = math.abs(math.subtract(spaceship._movement, expectedVelocity));
@@ -110,7 +84,7 @@ test('Test that movement is calculated correctly with long thrust', () => {
   // Calculate expected position.
   let expectedPosition = math.add(
     origObjLocation,
-    math.multiply(spaceship._movement, percentOfSecond));
+    math.multiply(spaceship._movement, elapsedSeconds));
 
   let posDiff = math.abs(
     math.subtract(spaceship._coordinates, expectedPosition));
@@ -129,10 +103,7 @@ test('Test that movement is calculated correctly with thruster off', () => {
     shoot: false
   };
 
-  let currentTime = new Date();
-  spaceship._lastUpdateTime = new Date( currentTime - 1000 /* ms */);
-
-  spaceship.updateState(control);
+  spaceship.updateState(control, 1);
   expect(spaceship._movement).toEqual([0, 0]);
 
   let tolerance = spaceship._model.maxSpeed/100;
@@ -156,7 +127,7 @@ test('Verify correct control object used in updateFrame()', () => {
     rotate: RotateState.none,
     thrust: false,
     shoot: false
-  });
+  }, expect.anything());
   
   mockUpdateState.mockReset();
 
@@ -169,12 +140,16 @@ test('Verify correct control object used in updateFrame()', () => {
 
   inputQueue.enqueue(controlInput);
   gameModel.updateFrame();
-  expect(mockUpdateState).toHaveBeenCalledWith(controlInput);
+  expect(mockUpdateState).toHaveBeenCalledWith(
+    controlInput,
+    expect.anything());
   mockUpdateState.mockReset();
 
   // Make sure game model uses last input if there is none
   gameModel.updateFrame();
-  expect(mockUpdateState).toHaveBeenCalledWith(controlInput);
+  expect(mockUpdateState).toHaveBeenCalledWith(
+    controlInput,
+    expect.anything());
   mockUpdateState.mockRestore();
 });
 
@@ -187,45 +162,29 @@ test('Test that rotation is accounted for in GameObject', () => {
     shoot: false
   };
 
-  // First, calculate with uninitialized time. This should give an approx
-  // equal position to the original rotation. Note that we need to calculate
-  // within tolerance since calculation uses Date objects.
-  spaceship.updateState(control);
-
-  let tolerance = spaceship._model.rotationSpeed / 100;
-  let rotDifference = Math.abs(spaceship._rotation - origRotation);
-  expect(rotDifference).toBeLessThan(tolerance);
-
-  // Next, calculate with a time one second in past.
-  spaceship._lastUpdateTime = new Date(
-    spaceship._lastUpdateTime - 1000 /* ms */);
-
-  spaceship.updateState(control);
+  // Verify CW
+  let timeInterval = 1;
+  spaceship.updateState(control, timeInterval);
   
   let estimatedRotation = spaceship._normalizeRotation(
     origRotation + spaceship._model.rotationSpeed);
   
-  rotDifference = Math.abs(spaceship._rotation - estimatedRotation);
-  expect(rotDifference).toBeLessThan(tolerance);
+  expect(spaceship._rotation).toBeCloseTo(estimatedRotation, 1);
 
   // Verify CCW 
-  spaceship._lastUpdateTime = new Date(
-    spaceship._lastUpdateTime - 1000 /* ms */);
-  
   control.rotate = RotateState.ccw;
-  spaceship.updateState(control);
+  spaceship.updateState(control, timeInterval);
   
   estimatedRotation = spaceship._normalizeRotation(
     estimatedRotation - spaceship._model.rotationSpeed);
   
-  rotDifference = Math.abs(spaceship._rotation - estimatedRotation);
-  expect(rotDifference).toBeLessThan(tolerance);
+  expect(spaceship._rotation).toBeCloseTo(estimatedRotation, 1);
 });
 
 test('Test that vertices rotated in decomposition of GameObject', () => {
   const rotation = 50;
   let spaceship = new model.Spaceship([100, 100], rotation);
-  const rotatedModel = spaceship.decompose().vertices;
+  const rotatedModel = spaceship.decompose()[0].vertices;
 
   const objModel = objModels.Spaceship.vertices;
   for (let vertexIdx = 0; vertexIdx < objModel.length; vertexIdx++) {
@@ -258,21 +217,90 @@ test('Test drag', () => {
   let currentMovementVect = [100, 100];
   spaceship._movement = currentMovementVect;
 
-  let msInPast = 300;
-  spaceship._lastUpdateTime = new Date(new Date().getTime() - msInPast);
-  spaceship.updateState(control);
+  let elapsedSeconds = 0.3;
+  spaceship.updateState(control, elapsedSeconds);
 
   // Calculate expected velocity. 
-  let percentOfSecond = msInPast / 1000;
   let dragEffect = math.multiply(
-    math.multiply(spaceship._movement, spaceship._model.drag),
-    percentOfSecond);
+    math.multiply(currentMovementVect, spaceship._model.drag),
+    elapsedSeconds);
 
   let expectedVelocity = math.subtract(currentMovementVect, dragEffect);
-  let tolerance = 1;
-  let velDiff = math.abs(math.subtract(spaceship._movement, expectedVelocity));
-  
-  for (let velDiffComponent of Array.from(velDiff)) {
-    expect(velDiffComponent).toBeLessThan(tolerance);
+  for (let ii = 0; ii < expectedVelocity.length; ii++) {
+    expect(spaceship._movement[ii]).toBeCloseTo(expectedVelocity[ii], 1)
   }
+});
+
+test('Test thruster model updated during thrust', () => {
+  // Make sure position matches updated spaceship exactly
+  let inputQueue = new containers.Queue();
+  let outputQueue = new containers.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let control = {
+    rotate: RotateState.cw,
+    thrust: true,
+    shoot: false,
+  };
+
+  let startTime = new Date().getTime();
+  inputQueue.enqueue(control);
+
+  do {
+    outputQueue.dequeue();
+    gameModel.updateFrame();
+  } while ((new Date().getTime() - startTime) < 1000);    
+
+  let frame = outputQueue.dequeue();
+  let array = Array.from(frame);
+  expect(array.length).toEqual(2);
+  expect(array[1].type).toEqual(objModels.ModelType.thruster);
+  
+  for (let ii = 0; ii < array[0].translation.length; ii++) {
+    expect(array[0].translation[ii]).toBeCloseTo(array[1].translation[ii], 1);
+  }
+});
+
+test('Test elapsed time is calculated correctly between frames', () => {
+  let inputQueue = new containers.Queue();
+  let outputQueue = new containers.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  let startTime = new Date().getTime();
+  
+  // Verify last call's 'elapsedTime' parameter is less than test length
+  let mockUpdateState = jest.spyOn(model.GameObject.prototype, 'updateState');
+
+  do {
+    gameModel.updateFrame();
+  } while ((new Date().getTime() - startTime) < 1000);
+
+  let lastCall = mockUpdateState.mock.calls[
+    mockUpdateState.mock.calls.length-1];
+
+  expect(lastCall[1]).toBeCloseTo(0);
+  mockUpdateState.mockRestore();
+});
+
+test('Test thruster model removed after thrusting', () => {
+  let inputQueue = new containers.Queue();
+  let outputQueue = new containers.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let control = {
+    rotate: RotateState.none,
+    thrust: true,
+    shoot: false,
+  };
+
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+  outputQueue.dequeue();
+
+  control.thrust = false;
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+
+  let frame = outputQueue.dequeue();
+  let array = Array.from(frame);
+  expect(array.length).toEqual(1);
 });

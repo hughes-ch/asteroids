@@ -26,15 +26,19 @@ export class GameObject {
    * @return {GameObject}
    */
   constructor(type, objParams) {
+    this.type = type;
+    this._childObjects = [];
     this._coordinates = objParams.coordinates;
-    this._lastUpdateTime = undefined;
     this._movement = objParams.movement;
     this._rotation = objParams.rotation;
-    this._type = type;
 
-    switch (this._type) {
+    switch (this.type) {
       case objModels.ModelType.spaceship:
         this._model = objModels.Spaceship;
+        break;
+
+      case objModels.ModelType.thruster:
+        this._model = objModels.Thruster;
         break;
 
       default:
@@ -44,7 +48,7 @@ export class GameObject {
             this.name = 'InvalidObjTypeException';
           };
           throw new invalidObjTypeException(
-            `New object not created. Invalid type: ${this._type}`);
+            `New object not created. Invalid type: ${this.type}`);
         }
     }
   }
@@ -52,64 +56,25 @@ export class GameObject {
   /**
    * Updates the state of the game object by a single frame
    *
+   * @param {Object}  control                Control object
+   * @param {Number}  numSecSinceLastUpdate  Number of seconds since last Frame
    * @return {undefined}
    */
-  updateState(control) {
+  updateState(control, numSecSinceLastUpdate) {
     
-    // If an object hasn't been updated yet, set to current time to render
-    // it immobile for a single frame. 
-    if (!this._lastUpdateTime) {
-      this._lastUpdateTime = new Date();
-    }
-
-    let currentTime = new Date();
-    let numSecSinceLastUpdate = (
-      currentTime.getTime() - this._lastUpdateTime.getTime())/1000;
-
-    // Determine rotation 
-    const directionMultiplier =
-          control.rotate == RotateState.none ? 0 : (
-            control.rotate == RotateState.cw ? 1 : -1
-          );
-
-    let scaledRotationChange =
-        directionMultiplier * this._model.rotationSpeed * numSecSinceLastUpdate;
-
-    this._rotation += scaledRotationChange;
-    this._rotation = this._normalizeRotation(this._rotation);
-
-    // Determine acceleration
-    let accelerationVector = [0, 0];
-    
-    if (control.thrust) {
-      accelerationVector = this._rotateVector(
-        [0, this._model.maxThrust],
-        this._rotation);
-    }
-
-    let scaledAccelerationVector = math.multiply(
-      accelerationVector,
-      numSecSinceLastUpdate);
-
-    // Determine drag
-    let dragEffect = math.multiply(
-      math.multiply(this._movement, this._model.drag),
-      numSecSinceLastUpdate);
-    
-    // Determine movement vector
-    if (control.thrust) {
-      this._movement = math.add(this._movement, scaledAccelerationVector);
-    }
-
-    this._movement = math.subtract(this._movement, dragEffect);
-
     // Determine coordinates
+    this._movement = this._calculateMovement(control, numSecSinceLastUpdate);
+
     this._coordinates = math.add(
       this._coordinates,
       math.multiply(this._movement, numSecSinceLastUpdate));
 
-    // Set last update time
-    this._lastUpdateTime = currentTime;
+    // Update child objects
+    this._childObjects.forEach((childObj) => {
+      childObj.updateState(control, numSecSinceLastUpdate);
+    });
+
+    this._addResultingChildObjects(control);
   }
 
   /**
@@ -139,15 +104,31 @@ export class GameObject {
   decompose() {
     // Rotate object model
     let rotatedModel = [];
-    for (let vertex of Array.from(this._model.vertices)) {
+    this._model.vertices.forEach((vertex) => {
       rotatedModel.push(this._rotateVector(vertex, this._rotation));
-    }
+    });
 
-    return {
+    let decomposedObj = [{
       translation: this._coordinates,
-      type: this._type,
+      type: this.type,
       vertices: rotatedModel,
-    };
+    }];
+
+    // Decompose child objects
+    this._childObjects.forEach((child) => {
+      decomposedObj = decomposedObj.concat(child.decompose());
+    });
+
+    return decomposedObj;
+  }
+
+  /**
+   * Getter for childObjects
+   *
+   * @return {Array}  Child Objects
+   */
+  get childObjects() {
+    return this._childObjects;
   }
 
   /** 
@@ -176,13 +157,126 @@ export class GameObject {
     const rotationInRad = rotation * Math.PI / 180;
     return math.rotate(vector, rotationInRad);
   }
+
+  /**
+   * Returns updated movement vector
+   *
+   * @param {obj}   control      Control object
+   * @param {Date}  elapsedTime  Time since last update
+   * @return {Array} Updated movement vector
+   */
+  _calculateMovement(control, elapsedTime) {
+    return this._movement;
+  }
+
+  /**
+   * Creates any objects as a result of this control
+   *
+   * @param {obj}  control  Control object
+   * @return {Array}  Array of new objects
+   */
+  _addResultingChildObjects(control) {
+    return;
+  }
+};
+
+/**
+ * Represents any object controlled by the user
+ *
+ */
+class UserControlledGameObject extends GameObject {
+
+  /**
+   * Constructor
+   *
+   * Note this class is not intended to be instantiated directly
+   *
+   * @param {objModel.ModelType}  type       Type of object
+   * @param {obj}                 objParams  Details about the object's model
+   * @return {UserControlledGameObject}
+   */
+  constructor(type, objParams) {
+    super(type, objParams);
+  };
+
+  /**
+   * Returns updated movement vector
+   *
+   * @param {obj}   control      Control object
+   * @param {Date}  elapsedTime  Time since last update
+   * @return {Array} Updated movement vector
+   */
+  _calculateMovement(control, elapsedTime) {
+    // Determine rotation 
+    const directionMultiplier =
+          control.rotate == RotateState.none ? 0 : (
+            control.rotate == RotateState.cw ? 1 : -1
+          );
+
+    let scaledRotationChange =
+        directionMultiplier * this._model.rotationSpeed * elapsedTime;
+
+    this._rotation += scaledRotationChange;
+    this._rotation = this._normalizeRotation(this._rotation);
+
+    // Determine acceleration. 
+    let accelerationVector = [0, 0];
+    
+    if (control.thrust) {
+      accelerationVector = this._rotateVector(
+        [0, this._model.maxThrust],
+        this._rotation);
+    }
+
+    let scaledAccelerationVector = math.multiply(
+      accelerationVector,
+      elapsedTime);
+
+    // Determine drag
+    let dragEffect = math.multiply(
+      math.multiply(this._movement, this._model.drag),
+      elapsedTime);
+    
+    // Determine movement vector
+    let updatedMovement = this._movement;
+    
+    if (control.thrust) {
+      updatedMovement = math.add(updatedMovement, scaledAccelerationVector);
+    }
+
+    return math.subtract(updatedMovement, dragEffect);
+  }
+};
+
+/**
+ * Thruster graphic on back of spaceship
+ *
+ */
+export class Thruster extends UserControlledGameObject {
+
+  /**
+   * Constructor
+   *
+   * @param {Array} coordinates  Initial starting coordinates
+   * @param {Array} movement     Initial movement vector
+   * @param {number} rotation    Initial rotation of object
+   * @return {Thruster}
+   */
+  constructor(coordinates, movement, rotation) {
+    let objParams = {
+      coordinates: coordinates,
+      movement: movement,
+      rotation: rotation,
+    };
+    super(objModels.ModelType.thruster, objParams);
+  }
 };
 
 /**
  * Represents the object the player is trying to fly
  *
  */
-export class Spaceship extends GameObject {
+export class Spaceship extends UserControlledGameObject {
 
   /**
    * Constructor
@@ -198,6 +292,30 @@ export class Spaceship extends GameObject {
       rotation: rotation
     };
     super(objModels.ModelType.spaceship, objParams);
+  }
+
+  /**
+   * Adds any objects created as a result of this control
+   *
+   * @param {obj}  control  Control object
+   * @return {Array}  Array of new objects
+   */
+  _addResultingChildObjects(control) {
+    let thrusterFilter = (element) => {
+      return element.type === objModels.ModelType.thruster;
+    };
+    
+    if (control.thrust) {
+      if (this.childObjects.find(thrusterFilter) === undefined) {
+        this.childObjects.push(
+          new Thruster(this._coordinates, this._movement, this._rotation));
+      }
+    } else {
+      let thrusterIdx = this.childObjects.find(thrusterFilter);
+      if (thrusterIdx !== undefined) {
+        this.childObjects.splice(thrusterIdx, 1);
+      }
+    }
   }
 };
 
@@ -255,6 +373,7 @@ class GameStateModel {
     this._inputQueue = inputQueue;
     this._outputQueue = outputQueue;
     this._lastControl = undefined;
+    this._lastUpdateTime = undefined;
 
     this._objectList = [
       new Spaceship([100, 100], 0),
@@ -284,24 +403,33 @@ class GameStateModel {
       this._lastControl = control;
     }
 
-    // Calculate movements and collisions
-    for (let obj of Array.from(this._objectList)) {
-      obj.updateState(control);
+    // Update time interval between frames
+    if (!this._lastUpdateTime) {
+      this._lastUpdateTime = new Date().getTime();
+    }
 
-      for (let remoteObj of Array.from(this._objectList)) {
+    let currentTime = new Date().getTime();
+    let elapsedTime = (currentTime - this._lastUpdateTime) / 1000;
+    this._lastUpdateTime = currentTime;
+    
+    // Calculate movements and collisions
+    this._objectList.forEach((obj) => {
+      obj.updateState(control, elapsedTime);
+
+      this._objectList.forEach((remoteObj) => {
         if (obj.collidesWith(remoteObj)) {
           obj.destroy();
           remoteObj.destroy();
         }
-      }
-    }
+      });
+    });
 
     // Add remaining objects to the frame 
     let frame = new containers.Frame();
 
-    for (let obj of Array.from(this._objectList)) {
+    this._objectList.forEach((obj) => {
       frame.add(obj);
-    }
+    });
     
     this._outputQueue.enqueue(frame);
   }

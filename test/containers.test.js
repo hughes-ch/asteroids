@@ -43,7 +43,8 @@ test('Test Frame iteration', () => {
 
   let obj_idx = 0;
   for (let obj of frame) {
-    expect(obj.translation).toEqual(objects[obj_idx].decompose().translation);
+    expect(obj.translation).toEqual(
+      objects[obj_idx].decompose()[0].translation);
     obj_idx++;
   }
 });

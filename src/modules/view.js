@@ -109,11 +109,12 @@ export class View {
 
       // Translate object model to correct coordinate
       let translatedCoordArray = [];
-      for (let coordinate of Array.from(obj.vertices)) {
+
+      obj.vertices.forEach((coordinate) => {
         translatedCoordArray.push(
           math.add(coordinate, obj.translation));
-      }
-
+      });
+      
       this._canvas.drawObject(translatedCoordArray);
     }
   }
