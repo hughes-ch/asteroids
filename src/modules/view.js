@@ -21,7 +21,9 @@ export class Canvas {
    *
    */
   constructor() {
-    this._initialize();
+    this.height = 0;
+    this.width = 0;
+    this._context = undefined;
   }
 
   /**
@@ -57,11 +59,11 @@ export class Canvas {
    * Initialize canvas
    *
    */
-  _initialize() {
+  initializeCanvas() {
     let canvas = document.getElementById('canvas');
 
-    this.width = window.innerWidth * 0.8;
-    this.height = window.innerHeight * 0.8;
+    this.width = window.innerWidth;
+    this.height = window.innerHeight;
     canvas.width = this.width;
     canvas.height = this.height;
 
@@ -86,6 +88,7 @@ export class View {
   constructor(inputQueue) {
     this._inputQueue = inputQueue;
     this._canvas = new Canvas();
+    this._prevFrame = undefined;
   }
 
   /**
@@ -100,10 +103,18 @@ export class View {
       return;
     }
 
-    this._canvas.resetCanvas();
-
-    // Dequeue next frame
+    // If the canvas size changed or this is the first Frame, initialize canvas
     let nextFrame = this._inputQueue.dequeue();
+
+    if (this._prevFrame === undefined ||
+        this._prevFrame.windowSize[0] !== nextFrame.windowSize[0] ||
+        this._prevFrame.windowSize[1] !== nextFrame.windowSize[1]) {
+      
+      this._canvas.initializeCanvas();
+    }
+
+    // Draw next frame
+    this._canvas.resetCanvas();
 
     for (let obj of nextFrame) {
 
@@ -117,6 +128,9 @@ export class View {
       
       this._canvas.drawObject(translatedCoordArray);
     }
+
+    // Save frame history
+    this._prevFrame = nextFrame;
   }
 };
 

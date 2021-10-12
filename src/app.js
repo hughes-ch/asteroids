@@ -6,7 +6,7 @@
  *
  */
 
-import * as containers from './modules/containers.js'
+import * as intf from './modules/interfaces.js'
 import * as control from './modules/controller.js'
 import * as model from './modules/model.js'
 import * as view from './modules/view.js'
@@ -16,8 +16,8 @@ import * as view from './modules/view.js'
  *
  */
 let asteroids_main = function() {
-  let frameQueue = new containers.Queue();
-  let controlQueue = new containers.Queue();
+  let frameQueue = new intf.Queue();
+  let controlQueue = new intf.Queue();
 
   let controller = new control.Controller(controlQueue);
   let gameModel = new model.Model(controlQueue, frameQueue);

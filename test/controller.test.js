@@ -5,12 +5,21 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from '../src/modules/containers.js'
+import * as intf from '../src/modules/interfaces.js'
 import * as control from '../src/modules/controller.js'
+
+let controller;
+let queue;
 
 beforeEach(() => {
   jest.spyOn(control.Controller.prototype, '_addEventListeners')
     .mockImplementation(() => undefined);
+  jest.spyOn(control.Controller.prototype, '_getWindowSize')
+    .mockImplementation(() => [1684, 1305]);
+
+  queue = new intf.Queue();
+  controller = new control.Controller(queue);
+  queue.dequeue();
 });
 
 afterEach(() => {
@@ -18,8 +27,6 @@ afterEach(() => {
 });
 
 test('Prevent default', () => {
-  let queue = new containers.Queue();
-  let controller = new control.Controller(queue);
   let eventInfo = {
     defaultPrevented: true,
     code: 'KeyW'
@@ -30,8 +37,6 @@ test('Prevent default', () => {
 });
 
 test('Test invalid key', () => {
-  let queue = new containers.Queue();
-  let controller = new control.Controller(queue);
   let eventInfo = {
     defaultPrevented: false,
     code: 'NotAKey'
@@ -45,8 +50,6 @@ test('Test thruster', () => {
   for (let key of ['ArrowUp', 'KeyW']) {
     for (let keyState of ['down', 'up']) {
 
-      let queue = new containers.Queue();
-      let controller = new control.Controller(queue);
       let eventInfo = {
         defaultPrevented: false,
         code: key,
@@ -66,8 +69,6 @@ test('Test CW rotation', () => {
   for (let key of ['ArrowRight', 'KeyD']) {
     for (let keyState of ['down', 'up']) {
       
-      let queue = new containers.Queue();
-      let controller = new control.Controller(queue);
       let eventInfo = {
         defaultPrevented: false,
         code: key,
@@ -81,8 +82,8 @@ test('Test CW rotation', () => {
       expect(controlObj.thrust).toBe(false);
       expect(controlObj.rotate).toEqual(
         keyState == 'down' ?
-          control.RotateState.cw :
-          control.RotateState.none);
+          intf.RotateState.cw :
+          intf.RotateState.none);
     }
   }
 });
@@ -91,8 +92,6 @@ test('Test CCW rotation', () => {
   for (let key of ['ArrowLeft', 'KeyA']) {
     for (let keyState of ['down', 'up']) {
       
-      let queue = new containers.Queue();
-      let controller = new control.Controller(queue);
       let eventInfo = {
         defaultPrevented: false,
         code: key,
@@ -106,8 +105,19 @@ test('Test CCW rotation', () => {
       expect(controlObj.thrust).toBe(false);
       expect(controlObj.rotate).toEqual(
         keyState == 'down' ?
-          control.RotateState.ccw :
-          control.RotateState.none);
+          intf.RotateState.ccw :
+          intf.RotateState.none);
     }
   }
+});
+
+test('Test resize event', () => {
+  controller._handleResizeEvent();
+  expect(queue.length).toEqual(1);
+});
+
+test('Test initial window size sent on construction', () => {
+  let queue = new intf.Queue();
+  let controller = new control.Controller(queue);
+  expect(queue.length).toEqual(1);
 });

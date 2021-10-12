@@ -5,12 +5,12 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from '../src/modules/containers.js'
+import * as intf from '../src/modules/interfaces.js'
 import {Spaceship} from '../src/modules/model.js'
 import * as view from '../src/modules/view.js';
 
 beforeEach(() => {
-  jest.spyOn(view.Canvas.prototype, '_initialize')
+  jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
     .mockImplementation(() => undefined);
   jest.spyOn(view.Canvas.prototype, 'drawObject')
     .mockImplementation(() => undefined);
@@ -21,7 +21,7 @@ afterEach(() => {
 });
   
 test('Test view with nothing in input queue', () => {
-  let inputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
   let gameView = new view.View(inputQueue);
 
   let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas');
@@ -51,11 +51,11 @@ test('Test view with full queue', () => {
 
   // Fill frames
   let frames = [];
-  let queue = new containers.Queue();
+  let queue = new intf.Queue();
 
   for (let ii = 0; ii < objects.length; ii++)
   {
-    frames.push(new containers.Frame());
+    frames.push(new intf.Frame());
     
     for (let jj = 0; jj < objects[ii].length; jj++)
     {
@@ -97,4 +97,30 @@ test('Test view with full queue', () => {
 
   mockResetCanvas.mockRestore();
   mockDrawObject.mockRestore();
-}); 
+});
+
+test('Test window resizing', () => {
+
+  // Mock initialize method
+  let mockInitialize = jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
+      .mockImplementation(() => undefined);
+  let mockResetCanvas = jest.spyOn(view.Canvas.prototype, 'resetCanvas')
+    .mockImplementation(() => undefined);
+
+  // Verify initialize called after window is resized
+  let inputQueue = new intf.Queue();
+  let gameView = new view.View(inputQueue);
+
+  let frame1 = new intf.Frame();
+  inputQueue.enqueue(frame1);
+  gameView.renderCanvas();
+  mockInitialize.mockReset();
+
+  let frame2 = new intf.Frame();
+  frame2.windowSize = [100, 100];
+  inputQueue.enqueue(frame2);
+  gameView.renderCanvas();
+  expect(mockInitialize).toHaveBeenCalled();
+  
+  mockInitialize.mockRestore();
+});

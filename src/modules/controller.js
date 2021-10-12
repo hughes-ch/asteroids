@@ -12,14 +12,7 @@
  * Detects key events and converts them to game inputs
  *
  */
-import {Enumify} from 'enumify'
-
-export class RotateState extends Enumify {
-  static ccw = new RotateState();
-  static cw = new RotateState();
-  static none = new RotateState();
-  static _ = this.closeEnum();
-};
+import * as intf from './interfaces.js'
 
 export class Controller {
 
@@ -32,12 +25,10 @@ export class Controller {
   constructor(eventQueue) {
     this._eventQueue = eventQueue;
     this._addEventListeners();
+    this._currentControlState = new intf.Control();
 
-    this._currentControlState = {
-      rotate: RotateState.none,
-      thrust: false,
-      shoot: false
-    };
+    // Call window resize event handler to set initial screen size
+    this._handleResizeEvent();
   }
 
   /**
@@ -82,9 +73,9 @@ export class Controller {
       case "KeyD":
       case "ArrowRight":
         if (type === 'down') {
-          this._currentControlState.rotate = RotateState.cw;
+          this._currentControlState.rotate = intf.RotateState.cw;
         } else {
-          this._currentControlState.rotate = RotateState.none;
+          this._currentControlState.rotate = intf.RotateState.none;
         }
         break;
 
@@ -92,9 +83,9 @@ export class Controller {
       case "KeyA":
       case "ArrowLeft":
         if (type === 'down') {
-          this._currentControlState.rotate = RotateState.ccw;
+          this._currentControlState.rotate = intf.RotateState.ccw;
         } else {
-          this._currentControlState.rotate = RotateState.none;
+          this._currentControlState.rotate = intf.RotateState.none;
         }
         break;
 
@@ -106,5 +97,27 @@ export class Controller {
 
     // Do not handle event twice
     eventInfo.preventDefault();
+  }
+
+  /**
+   * Handles a resize event
+   *
+   * @return {undefined}
+   */
+  _handleResizeEvent() {
+    this._currentControlState.windowSize = this._getWindowSize();
+    this._eventQueue.enqueue(this._currentControlState);
+  }
+
+  /**
+   * Returns the current window size
+   *
+   * @return {Array}  With [height, width]
+   */
+  _getWindowSize() {
+    return [
+      window.innerWidth,
+      window.innerHeight
+    ];
   }
 };

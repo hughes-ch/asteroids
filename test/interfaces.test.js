@@ -1,15 +1,15 @@
 /**
- * Tests for containers.js
+ * Tests for interfaces.js
  *
  * :copyright: Copyright (c) 2021 Chris Hughes
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from '../src/modules/containers.js'
+import * as intf from '../src/modules/interfaces.js'
 import * as model from '../src/modules/model.js'
 
 test('Test enqueueing items works correctly', () => {
-  let queue = new containers.Queue();
+  let queue = new intf.Queue();
   let range = 5;
   for (let ii = 0; ii <= range; ii++) {
     queue.enqueue(ii);
@@ -23,7 +23,7 @@ test('Test enqueueing items works correctly', () => {
 });
 
 test('Test dequeuing an empty queue', () => {
-  let queue = new containers.Queue();
+  let queue = new intf.Queue();
 
   expect(queue.dequeue()).toBe(undefined);
 });
@@ -35,7 +35,7 @@ test('Test Frame iteration', () => {
     new model.Spaceship([300, 300], 100)
   ];
 
-  let frame = new containers.Frame();
+  let frame = new intf.Frame();
 
   for (let obj of Array.from(objects)) {
     frame.add(obj)

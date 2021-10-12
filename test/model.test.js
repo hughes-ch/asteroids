@@ -5,11 +5,10 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from '../src/modules/containers.js'
+import * as intf from '../src/modules/interfaces.js'
 import * as math from 'mathjs'
 import * as model from '../src/modules/model.js'
 import * as objModels from '../src/modules/objModels.js'
-import {RotateState} from '../src/modules/controller.js'
 
 /**
  * Utility function to calculate rotations
@@ -41,10 +40,13 @@ test('Test object decomposition', () => {
 });
 
 test('Test the GameStateModel initializes correctly', () => {
-  let inputQueue = new containers.Queue();
-  let outputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
   let gameModel = new model.Model(inputQueue, outputQueue);
 
+  let control = new intf.Control();
+  control.windowSize = [100, 100];
+  inputQueue.enqueue(control);
   gameModel.updateFrame()
 
   let frame = outputQueue.dequeue();
@@ -52,6 +54,9 @@ test('Test the GameStateModel initializes correctly', () => {
   expect(array.length).toEqual(1);
   expect(array[0].type).toEqual(objModels.ModelType.spaceship);
   expect(array[0].vertices[0][0]).not.toBeNaN();
+  expect(array[0].translation[0]).toEqual(control.windowSize[0]/2);
+  expect(array[0].translation[1]).toEqual(control.windowSize[1]/2);
+  expect(array[0].rotation).toEqual(180);
 });
 
 test('Test that movement is calculated correctly with thrust', () => {
@@ -59,11 +64,10 @@ test('Test that movement is calculated correctly with thrust', () => {
   let origObjLocation = [100, 100];
   let origRotation = 0;
   let spaceship = new model.Spaceship(origObjLocation, origRotation);
-  let control = {
-    rotate: RotateState.cw,
-    thrust: true,
-    shoot: false
-  };
+
+  let control = new intf.Control();
+  control.rotate = intf.RotateState.cw;
+  control.thrust = true;
 
   // Calculate expected velocity. Note that rotation calculation done in
   // another unit test.
@@ -97,11 +101,7 @@ test('Test that movement is calculated correctly with thrust', () => {
 test('Test that movement is calculated correctly with thruster off', () => {
   let origObjLocation = [100, 100];
   let spaceship = new model.Spaceship(origObjLocation, 0);
-  let control = {
-    rotate: 0,
-    thrust: false,
-    shoot: false
-  };
+  let control = new intf.Control();
 
   spaceship.updateState(control, 1);
   expect(spaceship._movement).toEqual([0, 0]);
@@ -117,26 +117,20 @@ test('Test that movement is calculated correctly with thruster off', () => {
 
 test('Verify correct control object used in updateFrame()', () => {
   let mockUpdateState = jest.spyOn(model.GameObject.prototype, 'updateState');
-  let inputQueue = new containers.Queue();
-  let outputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
   let gameModel = new model.Model(inputQueue, outputQueue);
 
-  // Make sure game model correctly initializes queue with no input
+  // Make sure game model does not update model without first input
   gameModel.updateFrame();
-  expect(mockUpdateState).toHaveBeenCalledWith({
-    rotate: RotateState.none,
-    thrust: false,
-    shoot: false
-  }, expect.anything());
-  
+  expect(mockUpdateState).not.toHaveBeenCalled();
   mockUpdateState.mockReset();
 
   // Make sure game model recognizes input
-  let controlInput = {
-    rotate: -1,
-    thrust: true,
-    shoot: true
-  };
+  let controlInput = new intf.Control();
+  controlInput.rotate = intf.RotateState.cw;
+  controlInput.thrust = true;
+  controlInput.shoot = true;
 
   inputQueue.enqueue(controlInput);
   gameModel.updateFrame();
@@ -156,11 +150,9 @@ test('Verify correct control object used in updateFrame()', () => {
 test('Test that rotation is accounted for in GameObject', () => {
   const origRotation = 50;
   let spaceship = new model.Spaceship([100, 100], origRotation);
-  const control = {
-    rotate: RotateState.cw,
-    thrust: false,
-    shoot: false
-  };
+  
+  let control = new intf.Control();
+  control.rotate = intf.RotateState.cw;
 
   // Verify CW
   let timeInterval = 1;
@@ -172,7 +164,7 @@ test('Test that rotation is accounted for in GameObject', () => {
   expect(spaceship._rotation).toBeCloseTo(estimatedRotation, 1);
 
   // Verify CCW 
-  control.rotate = RotateState.ccw;
+  control.rotate = intf.RotateState.ccw;
   spaceship.updateState(control, timeInterval);
   
   estimatedRotation = spaceship._normalizeRotation(
@@ -208,12 +200,8 @@ test('Test drag', () => {
   let origObjLocation = [100, 100];
   let origRotation = 0;
   let spaceship = new model.Spaceship(origObjLocation, origRotation);
-  let control = {
-    rotate: RotateState.none,
-    thrust: false,
-    shoot: false,
-  };
-
+  let control = new intf.Control();
+  
   let currentMovementVect = [100, 100];
   spaceship._movement = currentMovementVect;
 
@@ -233,15 +221,13 @@ test('Test drag', () => {
 
 test('Test thruster model updated during thrust', () => {
   // Make sure position matches updated spaceship exactly
-  let inputQueue = new containers.Queue();
-  let outputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
   let gameModel = new model.Model(inputQueue, outputQueue);
 
-  let control = {
-    rotate: RotateState.cw,
-    thrust: true,
-    shoot: false,
-  };
+  let control = new intf.Control();
+  control.rotate = intf.RotateState.cw;
+  control.thrust = true;
 
   let startTime = new Date().getTime();
   inputQueue.enqueue(control);
@@ -262,8 +248,8 @@ test('Test thruster model updated during thrust', () => {
 });
 
 test('Test elapsed time is calculated correctly between frames', () => {
-  let inputQueue = new containers.Queue();
-  let outputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
   let gameModel = new model.Model(inputQueue, outputQueue);
   let startTime = new Date().getTime();
   
@@ -271,6 +257,7 @@ test('Test elapsed time is calculated correctly between frames', () => {
   let mockUpdateState = jest.spyOn(model.GameObject.prototype, 'updateState');
 
   do {
+    inputQueue.enqueue(new intf.Control());
     gameModel.updateFrame();
   } while ((new Date().getTime() - startTime) < 1000);
 
@@ -282,15 +269,12 @@ test('Test elapsed time is calculated correctly between frames', () => {
 });
 
 test('Test thruster model removed after thrusting', () => {
-  let inputQueue = new containers.Queue();
-  let outputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
   let gameModel = new model.Model(inputQueue, outputQueue);
 
-  let control = {
-    rotate: RotateState.none,
-    thrust: true,
-    shoot: false,
-  };
+  let control = new intf.Control();
+  control.thrust = true;
 
   inputQueue.enqueue(control);
   gameModel.updateFrame();
@@ -303,4 +287,19 @@ test('Test thruster model removed after thrusting', () => {
   let frame = outputQueue.dequeue();
   let array = Array.from(frame);
   expect(array.length).toEqual(1);
+});
+
+test('Test window resizing', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let control = new intf.Control();
+  control.windowSize = [100, 100];
+
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+
+  let frame = outputQueue.dequeue();
+  expect(frame.windowSize).toEqual(control.windowSize);
 });

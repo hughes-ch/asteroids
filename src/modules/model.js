@@ -7,10 +7,9 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from './containers.js'
+import * as intf from './interfaces.js'
 import * as math from 'mathjs'
 import * as objModels from './objModels.js'
-import {RotateState} from './controller.js'
 
 /**
  * A game object - not intended to be instantiated, but serve as a base class
@@ -109,6 +108,7 @@ export class GameObject {
     });
 
     let decomposedObj = [{
+      rotation: this._rotation,
       translation: this._coordinates,
       type: this.type,
       vertices: rotatedModel,
@@ -209,8 +209,8 @@ class UserControlledGameObject extends GameObject {
   _calculateMovement(control, elapsedTime) {
     // Determine rotation 
     const directionMultiplier =
-          control.rotate == RotateState.none ? 0 : (
-            control.rotate == RotateState.cw ? 1 : -1
+          control.rotate == intf.RotateState.none ? 0 : (
+            control.rotate == intf.RotateState.cw ? 1 : -1
           );
 
     let scaledRotationChange =
@@ -374,10 +374,7 @@ class GameStateModel {
     this._outputQueue = outputQueue;
     this._lastControl = undefined;
     this._lastUpdateTime = undefined;
-
-    this._objectList = [
-      new Spaceship([100, 100], 0),
-    ];
+    this._objectList = [];
   }
 
   /**
@@ -386,16 +383,23 @@ class GameStateModel {
    * @return {undefined}
    */
   updateFrame() {
-
-    // Determine current control. If there isn't one, use the last
+    // Wait for initial control to set window parameters
     if (!this._lastControl) {
-      this._lastControl = {
-        rotate: RotateState.none,
-        thrust: false,
-        shoot: false
-      };
+
+      if (this._inputQueue.length > 0) {
+        let control = this._inputQueue.dequeue();
+
+        this._objectList.push(
+          new Spaceship(math.divide(control.windowSize, 2), 180));
+
+        this._lastControl = control;
+        
+      } else {
+        return;
+      }
     }
 
+    // Determine current control. If there isn't one, use the last
     let control = this._lastControl;
     if (this._inputQueue.length > 0)
     {
@@ -425,8 +429,9 @@ class GameStateModel {
     });
 
     // Add remaining objects to the frame 
-    let frame = new containers.Frame();
-
+    let frame = new intf.Frame();
+    frame.windowSize = control.windowSize;
+        
     this._objectList.forEach((obj) => {
       frame.add(obj);
     });

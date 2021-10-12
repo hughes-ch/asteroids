@@ -7,6 +7,7 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
+import {Enumify} from 'enumify'
 
 /**
  * Efficient implementation of a queue
@@ -81,6 +82,7 @@ export class Frame {
    * @return {Frame}
    */
   constructor() {
+    this.windowSize = [0, 0];
     this._objModels = [];
   }
 
@@ -119,4 +121,34 @@ export class Frame {
   }
 };
 
+/**
+ * Enum specifying which direction to rotate
+ *
+ */
+export class RotateState extends Enumify {
+  static ccw = new RotateState();
+  static cw = new RotateState();
+  static none = new RotateState();
+  static _ = this.closeEnum();
+};
+
+/**
+ * Control class
+ *
+ * Intended for direct element manipulation
+ * Constructor provided for convenience.
+ */
+export class Control {
+
+  /**
+   * Constructor
+   *
+   */
+  constructor() {
+    this.rotate = RotateState.none;
+    this.shoot = false;
+    this.thrust = false;
+    this.windowSize = [Infinity, Infinity];
+  }
+};
 
