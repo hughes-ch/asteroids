@@ -10,6 +10,35 @@
 import * as intf from './interfaces.js'
 import * as math from 'mathjs'
 import * as objModels from './objModels.js'
+import {List} from 'collections/list'
+
+/**
+ * Utility function to rotate a vector
+ *
+ * @param {Array} vector    Vector to rotate
+ * @param {Number} rotation Amount to rotate
+ * @return {Array} Rotated vector
+ */
+let rotateVector = (vector, rotation) => {
+  const rotationInRad = rotation * math.pi / 180;
+  // return math.rotate(vector, rotationInRad);
+  return [
+    vector[0] * math.cos(rotationInRad) - vector[1] * math.sin(rotationInRad),
+    vector[0] * math.sin(rotationInRad) + vector[1] * math.cos(rotationInRad),
+  ];
+};
+
+/** 
+ * Utility function to collect garbage from list
+ *
+ * @param {List}  list  List to clean
+ * @return {undefined}
+ */
+let collectGarbage = (list) => {
+  list.deleteAll(
+    { isGarbage: true, },
+    (element1, element2) => element1.isGarbage === element2.isGarbage);
+};
 
 /**
  * A game object - not intended to be instantiated, but serve as a base class
@@ -25,8 +54,9 @@ export class GameObject {
    * @return {GameObject}
    */
   constructor(type, objParams) {
+    this.isGarbage = false;
     this.type = type;
-    this._childObjects = [];
+    this._childObjects = new List();
     this._coordinates = objParams.coordinates;
     this._movement = objParams.movement;
     this._rotation = objParams.rotation;
@@ -38,6 +68,10 @@ export class GameObject {
 
       case objModels.ModelType.thruster:
         this._model = objModels.Thruster;
+        break;
+
+      case objModels.ModelType.missile:
+        this._model = objModels.Missile;
         break;
 
       default:
@@ -73,10 +107,18 @@ export class GameObject {
       for (let ii = 0; ii < this._coordinates.length; ii++) {
 
         if (this._coordinates[ii] > control.windowSize[ii]) {
-          this._coordinates[ii] = 0;
+          if (this._model.boundsAction === objModels.BoundsAction.wrap) {
+            this._coordinates[ii] = 0;
+          } else {
+            this.isGarbage = true;
+          }
           
         } else if (this._coordinates[ii] < 0) {
-          this._coordinates[ii] = control.windowSize[ii];
+          if (this._model.boundsAction === objModels.BoundsAction.wrap) {
+            this._coordinates[ii] = control.windowSize[ii];
+          } else {
+            this.isGarbage = true;
+          }
         }
       }
     }
@@ -87,6 +129,9 @@ export class GameObject {
     });
 
     this._addResultingChildObjects(control);
+
+    // Collect garbage
+    collectGarbage(this._childObjects);
   }
 
   /**
@@ -117,7 +162,7 @@ export class GameObject {
     // Rotate object model
     let rotatedModel = [];
     this._model.vertices.forEach((vertex) => {
-      rotatedModel.push(this._rotateVector(vertex, this._rotation));
+      rotatedModel.push(rotateVector(vertex, this._rotation));
     });
 
     let decomposedObj = [{
@@ -160,18 +205,6 @@ export class GameObject {
   }
 
   /**
-   * Rotates a vector
-   *
-   * @param {Array} vector    Vector to rotate
-   * @param {Number} rotation Amount to rotate
-   * @return {Array} Rotated vector
-   */
-  _rotateVector(vector, rotation) {
-    const rotationInRad = rotation * Math.PI / 180;
-    return math.rotate(vector, rotationInRad);
-  }
-
-  /**
    * Returns updated movement vector
    *
    * @param {obj}   control      Control object
@@ -190,6 +223,36 @@ export class GameObject {
    */
   _addResultingChildObjects(control) {
     return;
+  }
+};
+
+/** 
+ * A missile
+ *
+ */
+export class Missile extends GameObject {
+
+  /**
+   * Constructor
+   *
+   * @param {Array}   coordinates  Coordinates of new object
+   * @param {Array}   movement     Movement vect of ship firing missile
+   * @param {Number}  rotation     Rotation of ship firing object
+   * @return {Missile}
+   */
+  constructor(coordinates, movement, rotation) {
+    let missileMovement = math.add(
+      rotateVector(
+        [0, objModels.Missile.maxSpeed],
+        rotation),
+      movement);
+        
+    let objParams = {
+      coordinates: coordinates,
+      movement: missileMovement,
+      rotation: rotation,
+    };
+    super(objModels.ModelType.missile, objParams);
   }
 };
 
@@ -236,7 +299,7 @@ class UserControlledGameObject extends GameObject {
     let accelerationVector = [0, 0];
     
     if (control.thrust) {
-      accelerationVector = this._rotateVector(
+      accelerationVector = rotateVector(
         [0, this._model.maxThrust],
         this._rotation);
     }
@@ -314,20 +377,37 @@ export class Spaceship extends UserControlledGameObject {
    * @return {Array}  Array of new objects
    */
   _addResultingChildObjects(control) {
-    let thrusterFilter = (element) => {
-      return element.type === objModels.ModelType.thruster;
+    
+    // Add/remove thruster
+    let elementTypeMatches = (element1, element2) => {
+      return element1.type === element2.type;
+    };
+
+    let thrusterObj = {
+      type: objModels.ModelType.thruster,
     };
     
     if (control.thrust) {
-      if (this.childObjects.find(thrusterFilter) === undefined) {
+      if (!this.childObjects.has(thrusterObj, elementTypeMatches)) {
         this.childObjects.push(
-          new Thruster(this._coordinates, this._movement, this._rotation));
+          new Thruster(
+            this._coordinates,
+            this._movement,
+            this._rotation));
       }
+      
     } else {
-      let thrusterIdx = this.childObjects.find(thrusterFilter);
-      if (thrusterIdx !== undefined) {
-        this.childObjects.splice(thrusterIdx, 1);
-      }
+      this.childObjects.delete(thrusterObj, elementTypeMatches);
+    }
+
+    // Add missile shooting from nose
+    if (control.shoot) {
+      let newMissileLoc = math.add(
+        rotateVector(this._model.vertices[0], this._rotation),
+        this._coordinates);
+
+      this.childObjects.push(
+        new Missile(newMissileLoc, this._movement, this._rotation));
     }
   }
 };
@@ -387,7 +467,7 @@ class GameStateModel {
     this._outputQueue = outputQueue;
     this._lastControl = undefined;
     this._lastUpdateTime = undefined;
-    this._objectList = [];
+    this._objectList = new List();
   }
 
   /**
@@ -440,6 +520,9 @@ class GameStateModel {
         }
       });
     });
+
+    // Cleanup anything that is outside the model
+    collectGarbage(this._objectList);
 
     // Add remaining objects to the frame 
     let frame = new intf.Frame();

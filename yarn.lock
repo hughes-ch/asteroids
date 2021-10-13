@@ -1706,6 +1706,13 @@ collect-v8-coverage@^1.0.0:
   resolved "https://registry.yarnpkg.com/collect-v8-coverage/-/collect-v8-coverage-1.0.1.tgz#cc2c8e94fc18bbdffe64d6534570c8a673b27f59"
   integrity sha512-iBPtljfCNcTKNAto0KEtDfZ3qzjJvqE3aTGZsbhjSBlorqpXJlaWWtPO35D+ZImoC3KWejX64o+yPGxhWSTzfg==
 
+collections@^5.1.12:
+  version "5.1.12"
+  resolved "https://registry.yarnpkg.com/collections/-/collections-5.1.12.tgz#270f6c26ddc2930734ae6cc19ad4e8fb412af739"
+  integrity sha512-7WV0gdGlQFHjB//+/5JW4CdMnOlf7fWMMeM3EWvuao7RbK0MeFS01bZOgWmIH5DHDejSutf455QUZ56ZjjROXw==
+  dependencies:
+    weak-map "~1.0.x"
+
 color-convert@^1.9.0:
   version "1.9.3"
   resolved "https://registry.yarnpkg.com/color-convert/-/color-convert-1.9.3.tgz#bb71850690e1f136567de629d2d5471deda4c1e8"
@@ -3674,6 +3681,11 @@ watchpack@^2.2.0:
   dependencies:
     glob-to-regexp "^0.4.1"
     graceful-fs "^4.1.2"
+
+weak-map@~1.0.x:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/weak-map/-/weak-map-1.0.5.tgz#79691584d98607f5070bd3b70a40e6bb22e401eb"
+  integrity sha1-eWkVhNmGB/UHC9O3CkDmuyLkAes=
 
 webidl-conversions@^5.0.0:
   version "5.0.0"

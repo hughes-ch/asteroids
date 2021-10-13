@@ -150,5 +150,19 @@ export class Control {
     this.thrust = false;
     this.windowSize = [Infinity, Infinity];
   }
+
+  /**
+   * Returns a copy of the control
+   * 
+   * @return {Control}
+   */
+  copy() {
+    let copyControl = new Control();
+    copyControl.rotate = this.rotate;
+    copyControl.shoot = this.shoot;
+    copyControl.thrust = this.thrust;
+    copyControl.windowSize = Array.from(this.windowSize);
+    return copyControl;
+  }
 };
 

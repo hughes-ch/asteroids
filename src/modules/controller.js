@@ -58,9 +58,9 @@ export class Controller {
       return;
     }
 
-    switch (eventInfo.code) {
+    switch (eventInfo.key) {
       // Throw on (or turn off) the thruster
-      case "KeyW":
+      case "w":
       case "ArrowUp":
         if (type === 'down') {
           this._currentControlState.thrust = true;
@@ -70,7 +70,7 @@ export class Controller {
         break;
         
       // Rotate clockwise 
-      case "KeyD":
+      case "d":
       case "ArrowRight":
         if (type === 'down') {
           this._currentControlState.rotate = intf.RotateState.cw;
@@ -80,7 +80,7 @@ export class Controller {
         break;
 
       // Rotate counter-clockwise
-      case "KeyA":
+      case "a":
       case "ArrowLeft":
         if (type === 'down') {
           this._currentControlState.rotate = intf.RotateState.ccw;
@@ -89,11 +89,25 @@ export class Controller {
         }
         break;
 
+      // Fire missile
+      case " ":
+        if (type === 'down') {
+          // Immediately send shoot command, then toggle to send second
+          this._currentControlState.shoot = true;
+          this._sendControl(this._currentControlState);
+
+          this._currentControlState.shoot = false;
+          break;
+
+        } else {
+          return;
+        }
+
       default:
         return;
     }
 
-    this._eventQueue.enqueue(this._currentControlState);
+    this._sendControl(this._currentControlState);
 
     // Do not handle event twice
     eventInfo.preventDefault();
@@ -106,7 +120,7 @@ export class Controller {
    */
   _handleResizeEvent() {
     this._currentControlState.windowSize = this._getWindowSize();
-    this._eventQueue.enqueue(this._currentControlState);
+    this._sendControl(this._currentControlState);
   }
 
   /**
@@ -119,5 +133,15 @@ export class Controller {
       window.innerWidth,
       window.innerHeight
     ];
+  }
+
+  /** 
+   * Enqueue the control object
+   * 
+   * @param {Control}  control  The Control to send
+   * @return {undefined}
+   */
+  _sendControl(control) {
+    this._eventQueue.enqueue(control.copy());
   }
 };

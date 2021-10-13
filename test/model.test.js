@@ -28,6 +28,37 @@ let rotateVect = (vector, rotation) => {
 };
 
 /**
+ * Extended matchers
+ *
+ */
+expect.extend({
+  forEachIndexToMatch(received, expected, tolerance = 0) {
+    if (received.length !== expected.length) {
+      return {
+        message: () => 
+          `Sizes do not match: ${received.length} !== ${expected.length}`,
+        pass: false,
+      };
+    }
+
+    for (let ii = 0; ii < received.length; ii++) {
+      if (math.abs(received[ii] - expected[ii]) > tolerance) {
+        return {
+          message: () =>
+            `Index ${ii}: ${received[ii]} - ${expected[ii]} > ${tolerance}`,
+          pass: false,
+        };
+      }
+    }
+
+    return {
+      message: () => 'Arrays match',
+      pass: true,
+    };
+  },
+});
+
+/**
  * Unit tests
  *
  */
@@ -274,19 +305,29 @@ test('Test thruster model removed after thrusting', () => {
   let gameModel = new model.Model(inputQueue, outputQueue);
 
   let control = new intf.Control();
-  control.thrust = true;
+  control.shoot = true;
 
   inputQueue.enqueue(control);
   gameModel.updateFrame();
   outputQueue.dequeue();
 
+  control.thrust = true;
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+  outputQueue.dequeue();
+
+  control.shoot = false;
   control.thrust = false;
   inputQueue.enqueue(control);
   gameModel.updateFrame();
 
   let frame = outputQueue.dequeue();
   let array = Array.from(frame);
-  expect(array.length).toEqual(1);
+  expect(array.length).toEqual(3);
+
+  for (let element of array) {
+    expect(element.type).not.toEqual(objModels.ModelType.thruster);
+  }
 });
 
 test('Test window resizing', () => {
@@ -323,4 +364,73 @@ test('Test screen wrap', () => {
 
   expect(spaceship._coordinates[0]).toEqual(origCoordinates[0]);
   expect(spaceship._coordinates[1]).toEqual(control.windowSize[1]);
+});
+
+test('Test new missile created on "shoot"', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let control = new intf.Control();
+  control.shoot = true;
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+
+  let frame = outputQueue.dequeue();
+  let array = Array.from(frame);
+  expect(array.length).toEqual(2);
+  expect(array[1].type).toEqual(objModels.ModelType.missile);
+});
+
+test('Test new missiles move where ship is pointed', () => {
+  let rotation = 100;
+  let coordinates = [100, 100];
+  let spaceship = new model.Spaceship(coordinates, rotation);
+
+  let control = new intf.Control();
+  control.shoot = true;
+  spaceship.updateState(control, 0);
+  expect(spaceship.childObjects.length).toEqual(1);
+
+  let missile = spaceship.childObjects.pop();
+  let travelDirection = -Math.atan2(
+    missile._movement[0],
+    missile._movement[1]) * (180 / Math.PI);
+  
+  expect(travelDirection).toBeCloseTo(spaceship._rotation, 1);
+
+  let rotatedNose = math.add(
+    rotateVect(spaceship._model.vertices[0], spaceship._rotation),
+    spaceship._coordinates);
+  
+  expect(missile._coordinates).forEachIndexToMatch(rotatedNose);
+});
+
+test('Test missiles are removed when they fly out of screen', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let control = new intf.Control();
+  control.windowSize = [20, 20];
+  control.shoot = true;
+
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+
+  let frame = outputQueue.dequeue();
+  let array = Array.from(frame);
+  expect(array.length).toEqual(2);
+
+  let startTime = new Date().getTime();
+  control.shoot = false;
+  
+  do {
+    outputQueue.dequeue();
+    gameModel.updateFrame();
+  } while ((new Date().getTime() - startTime) < 500);
+
+  frame = outputQueue.dequeue();
+  array = Array.from(frame);
+  expect(array.length).toEqual(1);
 });

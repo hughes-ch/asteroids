@@ -29,7 +29,7 @@ afterEach(() => {
 test('Prevent default', () => {
   let eventInfo = {
     defaultPrevented: true,
-    code: 'KeyW'
+    key: 'w'
   };
 
   controller._handleKeyboardEvent('down', eventInfo);
@@ -39,7 +39,7 @@ test('Prevent default', () => {
 test('Test invalid key', () => {
   let eventInfo = {
     defaultPrevented: false,
-    code: 'NotAKey'
+    key: 'NotAKey'
   };
 
   controller._handleKeyboardEvent('down', eventInfo);
@@ -47,12 +47,12 @@ test('Test invalid key', () => {
 });
 
 test('Test thruster', () => {
-  for (let key of ['ArrowUp', 'KeyW']) {
+  for (let key of ['ArrowUp', 'w']) {
     for (let keyState of ['down', 'up']) {
 
       let eventInfo = {
         defaultPrevented: false,
-        code: key,
+        key: key,
         preventDefault: () => { undefined }
       };
 
@@ -66,12 +66,12 @@ test('Test thruster', () => {
 });
 
 test('Test CW rotation', () => {
-  for (let key of ['ArrowRight', 'KeyD']) {
+  for (let key of ['ArrowRight', 'd']) {
     for (let keyState of ['down', 'up']) {
       
       let eventInfo = {
         defaultPrevented: false,
-        code: key,
+        key: key,
         preventDefault: () => { undefined }
       };
 
@@ -89,12 +89,12 @@ test('Test CW rotation', () => {
 });
 
 test('Test CCW rotation', () => {
-  for (let key of ['ArrowLeft', 'KeyA']) {
+  for (let key of ['ArrowLeft', 'a']) {
     for (let keyState of ['down', 'up']) {
       
       let eventInfo = {
         defaultPrevented: false,
-        code: key,
+        key: key,
         preventDefault: () => { undefined }
       };
 
@@ -120,4 +120,26 @@ test('Test initial window size sent on construction', () => {
   let queue = new intf.Queue();
   let controller = new control.Controller(queue);
   expect(queue.length).toEqual(1);
+});
+
+test('Test shoot control SPC', () => {
+  let eventInfo = {
+    defaultPrevented: false,
+    key: ' ',
+    preventDefault: () => { undefined }
+  };
+
+  // A shoot button press will immediately send two events
+  controller._handleKeyboardEvent('down', eventInfo);
+  expect(queue.length).toEqual(2);
+
+  let controlObj = queue.dequeue();
+  expect(controlObj.shoot).toBe(true);
+
+  controlObj = queue.dequeue();
+  expect(controlObj.shoot).toBe(false);
+
+  // A shoot release will trigger nothing
+  controller._handleKeyboardEvent('up', eventInfo);
+  expect(queue.length).toEqual(0);
 });
