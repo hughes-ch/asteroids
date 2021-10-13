@@ -11,7 +11,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Installing environment
+          name: Installing JS environment
+          command: yarn install
+
+      - run:
+          name: Installing Python environment
           command: yarn api-install
 
       - run:
