@@ -283,14 +283,9 @@ class UserControlledGameObject extends GameObject {
    * @return {Array} Updated movement vector
    */
   _calculateMovement(control, elapsedTime) {
-    // Determine rotation 
-    const directionMultiplier =
-          control.rotate == intf.RotateState.none ? 0 : (
-            control.rotate == intf.RotateState.cw ? 1 : -1
-          );
-
+    // Determine rotation
     let scaledRotationChange =
-        directionMultiplier * this._model.rotationSpeed * elapsedTime;
+        this._model.rotationSpeed * elapsedTime * control.rotate;
 
     this._rotation += scaledRotationChange;
     this._rotation = this._normalizeRotation(this._rotation);
@@ -493,11 +488,16 @@ class GameStateModel {
     }
 
     // Determine current control. If there isn't one, use the last
-    let control = this._lastControl;
-    if (this._inputQueue.length > 0)
-    {
-      control = this._inputQueue.dequeue();
-      this._lastControl = control;
+    let control = new intf.Control();
+    if (this._inputQueue.length === 0) {
+      control = this._lastControl;
+
+    } else {
+      while(this._inputQueue.length > 0) {
+        let latestControl = this._inputQueue.dequeue();
+        control.stack(latestControl);
+        this._lastControl = latestControl;
+      }
     }
 
     // Update time interval between frames

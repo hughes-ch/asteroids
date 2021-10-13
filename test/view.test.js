@@ -61,8 +61,6 @@ test('Test view with full queue', () => {
     {
       frames[ii].add(objects[ii][jj]);
     }
-
-    queue.enqueue(frames[ii]);
   }
   
   // Mock functions and render canvas
@@ -74,6 +72,7 @@ test('Test view with full queue', () => {
 
   for (let ii = 0; ii < frames.length; ii++)
   {
+    queue.enqueue(frames[ii]);
     gameView.renderCanvas();
     
     // Make sure each object is drawn with correct coordinates
@@ -123,4 +122,39 @@ test('Test window resizing', () => {
   expect(mockInitialize).toHaveBeenCalled();
   
   mockInitialize.mockRestore();
+});
+
+test('Test that extra frames are discarded', () => {
+  // Create objects
+  let objects = [
+    [new Spaceship([100, 100], 0)],
+    [new Spaceship([150, 150], 0)],
+    []
+  ];
+
+  // Fill frames
+  let queue = new intf.Queue();
+
+  for (let objList of objects) {
+    let frame = new intf.Frame();
+    
+    for (let obj of objList) {
+      frame.add(obj)
+    }
+
+    queue.enqueue(frame);
+  }
+  
+  // Mock functions and render canvas
+  let gameView = new view.View(queue);
+  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas')
+    .mockImplementation(() => undefined);
+  let mockDrawObject = jest.spyOn(gameView._canvas, 'drawObject')
+    .mockImplementation(() => undefined);
+
+  // Check draw object never called (meaning only last, empty frame rendered)
+  expect(mockDrawObject).toHaveBeenCalledTimes(0);
+
+  mockResetCanvas.mockRestore();
+  mockDrawObject.mockRestore();
 });

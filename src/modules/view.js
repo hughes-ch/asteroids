@@ -62,10 +62,11 @@ export class Canvas {
   initializeCanvas() {
     let canvas = document.getElementById('canvas');
 
-    this.width = window.innerWidth;
+    this.width = window.outerWidth;
     this.height = window.innerHeight;
     canvas.width = this.width;
     canvas.height = this.height;
+    console.log(`[${canvas.width}, ${canvas.height}]`);
 
     this._context = canvas.getContext('2d');
     this._context.fillStyle = '#000';
@@ -98,14 +99,18 @@ export class View {
    */
   renderCanvas() {
 
-    // Don't touch canvas if nothing is in the queue
-    if (this._inputQueue.length === 0) {
+    // Get the latest frame - discard any earlier ones in queue
+    let nextFrame = undefined;
+    
+    while (this._inputQueue.length > 0) {
+      nextFrame = this._inputQueue.dequeue();
+    }
+
+    if (nextFrame === undefined) {
       return;
     }
 
     // If the canvas size changed or this is the first Frame, initialize canvas
-    let nextFrame = this._inputQueue.dequeue();
-
     if (this._prevFrame === undefined ||
         this._prevFrame.windowSize[0] !== nextFrame.windowSize[0] ||
         this._prevFrame.windowSize[1] !== nextFrame.windowSize[1]) {

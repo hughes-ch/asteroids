@@ -122,17 +122,6 @@ export class Frame {
 };
 
 /**
- * Enum specifying which direction to rotate
- *
- */
-export class RotateState extends Enumify {
-  static ccw = new RotateState();
-  static cw = new RotateState();
-  static none = new RotateState();
-  static _ = this.closeEnum();
-};
-
-/**
  * Control class
  *
  * Intended for direct element manipulation
@@ -140,12 +129,17 @@ export class RotateState extends Enumify {
  */
 export class Control {
 
+  // Static class "constants"
+  static get rotateFullCw()  { return 1; }
+  static get rotateFullCcw() { return -1; }
+  static get rotateNone()    { return 0; }
+
   /**
    * Constructor
    *
    */
   constructor() {
-    this.rotate = RotateState.none;
+    this.rotate = 0;
     this.shoot = false;
     this.thrust = false;
     this.windowSize = [Infinity, Infinity];
@@ -163,6 +157,19 @@ export class Control {
     copyControl.thrust = this.thrust;
     copyControl.windowSize = Array.from(this.windowSize);
     return copyControl;
+  }
+
+  /**
+   * "Stack" controls to handle multiple at once
+   * 
+   * @param {Control}  nextControl  Next Control to account for 
+   * @return {undefined}
+   */
+  stack(nextControl) {
+    this.rotate = nextControl.rotate;
+    this.shoot = this.shoot || nextControl.shoot;
+    this.thrust = this.thrust || nextControl.thrust;
+    this.windowSize = nextControl.windowSize;
   }
 };
 

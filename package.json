@@ -19,7 +19,7 @@
     "build": "webpack",
     "debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
     "test": "jest --coverage",
-    "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0"
+    "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0 --cert=adhoc"
   },
   "babel": {
     "presets": [

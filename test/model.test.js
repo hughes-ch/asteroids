@@ -97,7 +97,7 @@ test('Test that movement is calculated correctly with thrust', () => {
   let spaceship = new model.Spaceship(origObjLocation, origRotation);
 
   let control = new intf.Control();
-  control.rotate = intf.RotateState.cw;
+  control.rotate = intf.Control.rotateFullCw;
   control.thrust = true;
 
   // Calculate expected velocity. Note that rotation calculation done in
@@ -159,7 +159,7 @@ test('Verify correct control object used in updateFrame()', () => {
 
   // Make sure game model recognizes input
   let controlInput = new intf.Control();
-  controlInput.rotate = intf.RotateState.cw;
+  controlInput.rotate = intf.Control.rotateFullCw;
   controlInput.thrust = true;
   controlInput.shoot = true;
 
@@ -183,7 +183,7 @@ test('Test that rotation is accounted for in GameObject', () => {
   let spaceship = new model.Spaceship([100, 100], origRotation);
   
   let control = new intf.Control();
-  control.rotate = intf.RotateState.cw;
+  control.rotate = intf.Control.rotateFullCw;
 
   // Verify CW
   let timeInterval = 1;
@@ -195,7 +195,7 @@ test('Test that rotation is accounted for in GameObject', () => {
   expect(spaceship._rotation).toBeCloseTo(estimatedRotation, 1);
 
   // Verify CCW 
-  control.rotate = intf.RotateState.ccw;
+  control.rotate = intf.Control.rotateFullCcw;
   spaceship.updateState(control, timeInterval);
   
   estimatedRotation = spaceship._normalizeRotation(
@@ -257,7 +257,7 @@ test('Test thruster model updated during thrust', () => {
   let gameModel = new model.Model(inputQueue, outputQueue);
 
   let control = new intf.Control();
-  control.rotate = intf.RotateState.cw;
+  control.rotate = intf.Control.rotateFullCw;
   control.thrust = true;
 
   let startTime = new Date().getTime();
@@ -434,3 +434,50 @@ test('Test missiles are removed when they fly out of screen', () => {
   array = Array.from(frame);
   expect(array.length).toEqual(1);
 });
+
+test('Test that extra controls are stacked', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+
+  let dummyControl = new intf.Control();
+  inputQueue.enqueue(dummyControl);
+  gameModel.updateFrame();
+
+  let control1 = new intf.Control();
+  control1.rotate = 0;
+  control1.shoot = true;
+  control1.thrust = true;
+  control1.windowSize = [10, 10];
+  inputQueue.enqueue(control1);
+
+  let control2 = new intf.Control();
+  control2.rotate = 1;
+  control2.shoot = false;
+  control2.thrust = false;
+  control2.windowSize = [100, 100];
+  inputQueue.enqueue(control2);
+  
+  let mockUpdateState = jest.spyOn(model.GameObject.prototype, 'updateState');
+  gameModel.updateFrame();
+
+  let expectedControl = new intf.Control();
+  expectedControl.rotate = control2.rotate;
+  expectedControl.shoot = control1.shoot;
+  expectedControl.thrust = control1.thrust;
+  expectedControl.windowSize = control2.windowSize;
+  expect(mockUpdateState).toHaveBeenCalledWith(
+    expectedControl,
+    expect.anything());
+  
+  mockUpdateState.mockReset();
+  gameModel.updateFrame();
+
+  expectedControl = control2;
+  expect(mockUpdateState).toHaveBeenCalledWith(
+    expectedControl,
+    expect.anything());
+  
+  mockUpdateState.mockRestore();
+});
+
