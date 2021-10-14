@@ -28,6 +28,7 @@
   "dependencies": {
     "collections": "^5.1.12",
     "enumify": "^2.0.0",
+    "just-clone": "^3.2.1",
     "mathjs": "^9.5.0",
     "source-map-loader": "^3.0.0",
     "ts-loader": "^9.2.6",

@@ -66,7 +66,6 @@ export class Canvas {
     this.height = window.innerHeight;
     canvas.width = this.width;
     canvas.height = this.height;
-    console.log(`[${canvas.width}, ${canvas.height}]`);
 
     this._context = canvas.getContext('2d');
     this._context.fillStyle = '#000';

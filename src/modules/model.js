@@ -10,6 +10,7 @@
 import * as intf from './interfaces.js'
 import * as math from 'mathjs'
 import * as objModels from './objModels.js'
+import clone from 'just-clone'
 import {List} from 'collections/list'
 
 /**
@@ -41,6 +42,26 @@ let collectGarbage = (list) => {
 };
 
 /**
+ * Object parameters class
+ *
+ * Minimal interface. Members meant to be manipulated directly
+ */
+class ObjectParameters {
+
+  /**
+   * Constructor
+   *
+   * @return {ObjectParameters}
+   */
+  constructor() {
+    this.coordinates = [0, 0];
+    this.movement = [0, 0];
+    this.rotation = 0;
+    this.scale = 1;
+  }
+};
+
+/**
  * A game object - not intended to be instantiated, but serve as a base class
  *
  */
@@ -54,24 +75,30 @@ export class GameObject {
    * @return {GameObject}
    */
   constructor(type, objParams) {
+    this.coordinates = objParams.coordinates;
     this.isGarbage = false;
     this.type = type;
     this._childObjects = new List();
-    this._coordinates = objParams.coordinates;
     this._movement = objParams.movement;
     this._rotation = objParams.rotation;
 
+    // Choose object model
     switch (this.type) {
+      case objModels.ModelType.asteroid:
+        let modelIdx = Math.floor(Math.random() * objModels.Asteroid.length);
+        this._model = clone(objModels.Asteroid[modelIdx]);
+        break;
+        
+      case objModels.ModelType.missile:
+        this._model = clone(objModels.Missile);
+        break;
+
       case objModels.ModelType.spaceship:
-        this._model = objModels.Spaceship;
+        this._model = clone(objModels.Spaceship);
         break;
 
       case objModels.ModelType.thruster:
-        this._model = objModels.Thruster;
-        break;
-
-      case objModels.ModelType.missile:
-        this._model = objModels.Missile;
+        this._model = clone(objModels.Thruster);
         break;
 
       default:
@@ -84,6 +111,12 @@ export class GameObject {
             `New object not created. Invalid type: ${this.type}`);
         }
     }
+
+    // Scale object model
+    this._model.vertices = this._model.vertices.map(
+      (vertex) => {
+        return math.multiply(vertex, objParams.scale);
+      });
   }
 
   /**
@@ -94,31 +127,29 @@ export class GameObject {
    * @return {undefined}
    */
   updateState(control, numSecSinceLastUpdate) {
+
+    // Determine if object is at end-of-life
+    this._model.lifetime -= numSecSinceLastUpdate;
+    if (this._model.lifetime <= 0) {
+      this.isGarbage = true;
+    }
     
     // Determine coordinates
     this._movement = this._calculateMovement(control, numSecSinceLastUpdate);
 
-    this._coordinates = math.add(
-      this._coordinates,
+    this.coordinates = math.add(
+      this.coordinates,
       math.multiply(this._movement, numSecSinceLastUpdate));
 
     // Determine wrapped coordinates
     if (control.windowSize.every((size) => size < Infinity)) {
-      for (let ii = 0; ii < this._coordinates.length; ii++) {
+      for (let ii = 0; ii < this.coordinates.length; ii++) {
 
-        if (this._coordinates[ii] > control.windowSize[ii]) {
-          if (this._model.boundsAction === objModels.BoundsAction.wrap) {
-            this._coordinates[ii] = 0;
-          } else {
-            this.isGarbage = true;
-          }
+        if (this.coordinates[ii] > control.windowSize[ii]) {
+          this.coordinates[ii] = 0;
           
-        } else if (this._coordinates[ii] < 0) {
-          if (this._model.boundsAction === objModels.BoundsAction.wrap) {
-            this._coordinates[ii] = control.windowSize[ii];
-          } else {
-            this.isGarbage = true;
-          }
+        } else if (this.coordinates[ii] < 0) {
+          this.coordinates[ii] = control.windowSize[ii];
         }
       }
     }
@@ -167,7 +198,7 @@ export class GameObject {
 
     let decomposedObj = [{
       rotation: this._rotation,
-      translation: this._coordinates,
+      translation: this.coordinates,
       type: this.type,
       vertices: rotatedModel,
     }];
@@ -247,12 +278,62 @@ export class Missile extends GameObject {
         rotation),
       movement);
         
-    let objParams = {
-      coordinates: coordinates,
-      movement: missileMovement,
-      rotation: rotation,
-    };
+    let objParams = new ObjectParameters();
+    objParams.coordinates = coordinates;
+    objParams.movement = missileMovement;
+    objParams.rotation = rotation;
+
     super(objModels.ModelType.missile, objParams);
+  }
+};
+
+/**
+ * An asteroid
+ *
+ */
+export class Asteroid extends GameObject {
+
+  /**
+   * Static "Constants"
+   *
+   */
+  static get largeScale() { return 3; }
+
+  /**
+   * Constructor
+   *
+   * @param {Array}  coordinates  Coordinates of new object
+   * @return {Asteroid}
+   */
+  constructor(coordinates, scale) {
+    let objParams = new ObjectParameters();
+    objParams.coordinates = coordinates;
+    objParams.movement = undefined;
+    objParams.rotation = Math.random() * 360;
+    objParams.scale = scale;
+
+    super(objModels.ModelType.asteroid, objParams);
+
+    this._scale = scale;
+  }
+
+  /**
+   * Returns updated movement vector
+   *
+   * @param {obj}   control      Control object
+   * @param {Date}  elapsedTime  Time since last update
+   * @return {Array} Updated movement vector
+   */
+  _calculateMovement(control, elapsedTime) {
+
+    // Movement must be calculated after model is chosen by base class
+    if (this._movement === undefined) {
+      let movementVec = [0, this._model.maxSpeed / this._scale];
+      let movementAngle = Math.random() * 360;
+      this._movement = rotateVector(movementVec, movementAngle);
+    }
+
+    return this._movement;
   }
 };
 
@@ -334,11 +415,11 @@ export class Thruster extends UserControlledGameObject {
    * @return {Thruster}
    */
   constructor(coordinates, movement, rotation) {
-    let objParams = {
-      coordinates: coordinates,
-      movement: movement,
-      rotation: rotation,
-    };
+    let objParams = new ObjectParameters();
+    objParams.coordinates = coordinates;
+    objParams.movement = movement;
+    objParams.rotation = rotation;
+
     super(objModels.ModelType.thruster, objParams);
   }
 };
@@ -357,11 +438,10 @@ export class Spaceship extends UserControlledGameObject {
    * @return {Spaceship}
    */
   constructor(coordinates, rotation) {
-    let objParams = {
-      coordinates: coordinates,
-      movement: [0, 0],
-      rotation: rotation
-    };
+    let objParams = new ObjectParameters();
+    objParams.coordinates = coordinates;
+    objParams.rotation = rotation;
+
     super(objModels.ModelType.spaceship, objParams);
   }
 
@@ -386,7 +466,7 @@ export class Spaceship extends UserControlledGameObject {
       if (!this.childObjects.has(thrusterObj, elementTypeMatches)) {
         this.childObjects.push(
           new Thruster(
-            this._coordinates,
+            this.coordinates,
             this._movement,
             this._rotation));
       }
@@ -399,10 +479,180 @@ export class Spaceship extends UserControlledGameObject {
     if (control.shoot) {
       let newMissileLoc = math.add(
         rotateVector(this._model.vertices[0], this._rotation),
-        this._coordinates);
+        this.coordinates);
 
       this.childObjects.push(
         new Missile(newMissileLoc, this._movement, this._rotation));
+    }
+  }
+};
+
+/**
+ * Generator
+ *
+ * In the standard game of asteroids, four asteroids would be generated in the
+ * first level. Once all asteroids were destroyed, a new set would be created.
+ *
+ * Alien spaceships would also shoot at the player - about one spaceship per
+ * level.
+ *
+ * As the player progressed, more alien spaceships and asteroids would be
+ * generated per level. In both cases, one more would be added per level.
+ */
+export class ObjectGenerator {
+
+  /**
+   * Static "constants"
+   *
+   */
+  static get minSafeDistancePercent() { return 0.4; }
+  static get timeToGenerateAsteroid() { return 1.0; }
+  static get startingAsteroidCount() { return 4; }
+
+  /**
+   * Constructor
+   *
+   * @return {ObjectGenerator}
+   */
+  constructor() {
+    this._action = undefined;
+    this._timer = undefined;
+    this._level = 1;
+  }
+
+  /** 
+   * Updates internal timers
+   *
+   * @param {Number} elapsedTime Elapsed time since last frame (sec)
+   * @return {undefined}
+   */
+  updateTimers(elapsedTime) {
+    if (this._timer !== undefined) {
+      this._timer -= elapsedTime;
+    }
+  }
+
+  /**
+   * Generates more stuff for this object list
+   *
+   * @param {List}    objectList   List of objects in frame
+   * @param {Array}   screenSize   Size of screen [x,y]
+   * @return {undefined}
+   */
+  makeNewObjectsFor(objectList, screenSize) {
+
+    // First, check if there's an ongoing action
+    if (this._action !== undefined) {
+      
+      if (this._timer <= 0) {
+        this._action(objectList, screenSize);
+        this._action = undefined;
+        this._timer = undefined;
+        
+      } else {
+        return;
+      }
+    }
+
+    // Create asteroids if there's an empty list
+    let asteroid = {
+      type: objModels.ModelType.asteroid,
+    };
+
+    if (!objectList.has(asteroid, this._objTypesMatch)) {
+      this._action = this._createNewAsteroids;
+      this._timer = ObjectGenerator.timeToGenerateAsteroid;
+    }
+  }
+
+  /**
+   * Create new asteroids
+   *
+   * @param {List}  objectList  List to add asteroids
+   * @param {Array} screenSize  Size of screen [x, y]
+   * @return {undefined} 
+   */
+  _createNewAsteroids(objList, screenSize) {
+    let numAsteroids = ObjectGenerator.startingAsteroidCount +
+        math.floor(this._level++ / 2);
+
+    for (let ii = 0; ii < numAsteroids; ii++) {
+      let coordinates = this._calculateNewAsteroidPos(objList, screenSize);
+      objList.push(new Asteroid(coordinates, Asteroid.largeScale));
+    }
+  }
+
+  /**
+   * Utility function to determine if object types match
+   *
+   * Meant to be used in List.get, List.has, etc
+   */
+  _objTypesMatch(obj1, obj2) {
+    return obj1.type === obj2.type;
+  }
+
+  /**
+   * Finds ship coordinates
+   *
+   * @param {List}  objList  List of objects in frame
+   * @return {Array} or {undefined}
+   */
+  _findShipCoordinates(objList) {
+    let shipType = {
+      type: objModels.ModelType.spaceship,
+    };
+
+    let shipObj = objList.get(shipType, this._objTypesMatch);
+    return shipObj === undefined ? undefined : shipObj.coordinates;
+  }
+
+  /**
+   * Finds new position of asteroid
+   *
+   * @param {List}  objList
+   * @param {Array} screenSize
+   * @return {Array} Coordinates of new asteroid
+   */
+  _calculateNewAsteroidPos(objList, screenSize) {
+    while (true) {
+      // Calculate new position
+      // 
+      // Randomly select Y. Then make X satisfy:
+      // x_new > sqrt(h^2 - (y_new-y_ship)^2) + x_ship
+      // 
+      // Where h is minimum distance between ship/asteroid,
+      // calculated as a fraction from midpoint to outside of canvas
+      let maxDistance = Math.sqrt(((screenSize[0]/2)**2) +
+                                  ((screenSize[1]/2)**2))
+
+      let minDistance = maxDistance * ObjectGenerator.minSafeDistancePercent;
+      let yCoordinate = Math.random() * screenSize[1];
+      let shipCoordinates = this._findShipCoordinates(objList);
+      let distance = (Math.random() * (maxDistance-minDistance)) + minDistance;
+
+      let xCoordinate = Math.sqrt((distance**2) -
+                                  ((yCoordinate-shipCoordinates[1])**2) +
+                                  shipCoordinates[0]);
+
+      // Verify wrapped position does not get too close
+      if (xCoordinate > screenSize[0]) {
+        xCoordinate -= screenSize[0];
+      } else if (xCoordinate < 0) {
+        xCoordinate += screenSize[0];
+      }
+
+      if (yCoordinate > screenSize[1]) {
+        yCoordinate -= screenSize[1];
+      } else if (yCoordinate < 0) {
+        yCoordinate += screenSize[1];
+      }
+
+      let wrappedDistance = Math.sqrt(((shipCoordinates[0]-xCoordinate)**2) +
+                                      ((shipCoordinates[1]-yCoordinate)**2));
+
+      if (wrappedDistance >= minDistance) {
+        return [xCoordinate, yCoordinate];
+      }
     }
   }
 };
@@ -431,6 +681,7 @@ export class Model {
     ];
 
     this._currentState = this._gameStates[1];
+    this._generator = new ObjectGenerator();
   }
 
   /**
@@ -439,7 +690,7 @@ export class Model {
    * @return {undefined}
    */
   updateFrame() {
-    this._currentState.updateFrame();
+    this._currentState.updateFrame(this._generator);
   }
 };
 
@@ -467,10 +718,12 @@ class GameStateModel {
 
   /**
    * Updates the game model by one frame
-   *
+   * 
+   * @param  {ObjectGenerator}  generator  Generator to create asteroids
    * @return {undefined}
    */
-  updateFrame() {
+  updateFrame(generator) {
+
     // Wait for initial control to set window parameters
     if (!this._lastControl) {
 
@@ -487,7 +740,35 @@ class GameStateModel {
       }
     }
 
-    // Determine current control. If there isn't one, use the last
+    // Calculate movements and collisions
+    let control = this._getControlForFrame();
+    let elapsedTime = this._calculateElapsedTime();
+
+    generator.updateTimers(elapsedTime);
+    generator.makeNewObjectsFor(this._objectList, control.windowSize);
+
+    this._objectList.forEach((obj) => {
+      obj.updateState(control, elapsedTime);
+
+      this._objectList.forEach((remoteObj) => {
+        if (obj.collidesWith(remoteObj)) {
+          obj.destroy();
+          remoteObj.destroy();
+        }
+      });
+    });
+
+    // Add clean Frame to the queue
+    collectGarbage(this._objectList);
+    this._sendFrame(control);
+  }
+
+  /**
+   * Gets the latest Control
+   *
+   * @return {Control}
+   */
+  _getControlForFrame() {
     let control = new intf.Control();
     if (this._inputQueue.length === 0) {
       control = this._lastControl;
@@ -500,7 +781,15 @@ class GameStateModel {
       }
     }
 
-    // Update time interval between frames
+    return control;
+  }
+
+  /**
+   * Gets the elapsed time between frames
+   *
+   * @return {Number}
+   */
+  _calculateElapsedTime() {
     if (!this._lastUpdateTime) {
       this._lastUpdateTime = new Date().getTime();
     }
@@ -508,23 +797,17 @@ class GameStateModel {
     let currentTime = new Date().getTime();
     let elapsedTime = (currentTime - this._lastUpdateTime) / 1000;
     this._lastUpdateTime = currentTime;
-    
-    // Calculate movements and collisions
-    this._objectList.forEach((obj) => {
-      obj.updateState(control, elapsedTime);
 
-      this._objectList.forEach((remoteObj) => {
-        if (obj.collidesWith(remoteObj)) {
-          obj.destroy();
-          remoteObj.destroy();
-        }
-      });
-    });
+    return elapsedTime;
+  }
 
-    // Cleanup anything that is outside the model
-    collectGarbage(this._objectList);
-
-    // Add remaining objects to the frame 
+  /** 
+   * Adds a Frame to the queue
+   * 
+   * @param {Control}  control  Control object for the frame
+   * @return {undefined}
+   */
+  _sendFrame(control) {
     let frame = new intf.Frame();
     frame.windowSize = control.windowSize;
         

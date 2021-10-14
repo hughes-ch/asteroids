@@ -9,6 +9,7 @@ import * as intf from '../src/modules/interfaces.js'
 import * as math from 'mathjs'
 import * as model from '../src/modules/model.js'
 import * as objModels from '../src/modules/objModels.js'
+import {List} from 'collections/list'
 
 /**
  * Utility function to calculate rotations
@@ -122,7 +123,7 @@ test('Test that movement is calculated correctly with thrust', () => {
     math.multiply(spaceship._movement, elapsedSeconds));
 
   let posDiff = math.abs(
-    math.subtract(spaceship._coordinates, expectedPosition));
+    math.subtract(spaceship.coordinates, expectedPosition));
   
   for (let posDiffComponent of Array.from(posDiff)) {
     expect(posDiffComponent).toBeLessThan(tolerance);
@@ -139,7 +140,7 @@ test('Test that movement is calculated correctly with thruster off', () => {
 
   let tolerance = spaceship._model.maxSpeed/100;
   let posDifference = math.subtract(
-    spaceship._coordinates, origObjLocation);
+    spaceship.coordinates, origObjLocation);
 
   for (let coord of posDifference) {
     expect(coord).toBeLessThan(tolerance);
@@ -354,16 +355,16 @@ test('Test screen wrap', () => {
   spaceship._movement = [0, 10];
   spaceship.updateState(control, 1);
 
-  expect(spaceship._coordinates[0]).toEqual(origCoordinates[0]);
-  expect(spaceship._coordinates[1]).toEqual(0);
+  expect(spaceship.coordinates[0]).toEqual(origCoordinates[0]);
+  expect(spaceship.coordinates[1]).toEqual(0);
 
   origCoordinates = [50, 1];
   spaceship = new model.Spaceship(origCoordinates, 0);
   spaceship._movement = [0, -10];
   spaceship.updateState(control, 1);
 
-  expect(spaceship._coordinates[0]).toEqual(origCoordinates[0]);
-  expect(spaceship._coordinates[1]).toEqual(control.windowSize[1]);
+  expect(spaceship.coordinates[0]).toEqual(origCoordinates[0]);
+  expect(spaceship.coordinates[1]).toEqual(control.windowSize[1]);
 });
 
 test('Test new missile created on "shoot"', () => {
@@ -401,38 +402,18 @@ test('Test new missiles move where ship is pointed', () => {
 
   let rotatedNose = math.add(
     rotateVect(spaceship._model.vertices[0], spaceship._rotation),
-    spaceship._coordinates);
+    spaceship.coordinates);
   
-  expect(missile._coordinates).forEachIndexToMatch(rotatedNose);
+  expect(missile.coordinates).forEachIndexToMatch(rotatedNose);
 });
 
-test('Test missiles are removed when they fly out of screen', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+test('Test missiles are removed after their lifetime', () => {
+  let missile = new model.Missile([0, 0], [0, 0], 0);
+  missile.updateState(new intf.Control(), objModels.Missile.lifetime/2);
+  expect(missile.isGarbage).toBe(false);
 
-  let control = new intf.Control();
-  control.windowSize = [20, 20];
-  control.shoot = true;
-
-  inputQueue.enqueue(control);
-  gameModel.updateFrame();
-
-  let frame = outputQueue.dequeue();
-  let array = Array.from(frame);
-  expect(array.length).toEqual(2);
-
-  let startTime = new Date().getTime();
-  control.shoot = false;
-  
-  do {
-    outputQueue.dequeue();
-    gameModel.updateFrame();
-  } while ((new Date().getTime() - startTime) < 500);
-
-  frame = outputQueue.dequeue();
-  array = Array.from(frame);
-  expect(array.length).toEqual(1);
+  missile.updateState(new intf.Control(), objModels.Missile.lifetime);
+  expect(missile.isGarbage).toBe(true);
 });
 
 test('Test that extra controls are stacked', () => {
@@ -481,3 +462,127 @@ test('Test that extra controls are stacked', () => {
   mockUpdateState.mockRestore();
 });
 
+test('Test asteroid model selection', () => {
+  let mockRandom = jest.spyOn(Math, 'random')
+      .mockImplementation(() => 0);
+
+  let asteroid = new model.Asteroid([0, 0], model.Asteroid.largeScale);
+  expect(asteroid._model.maxSpeed).toEqual(objModels.Asteroid[0].maxSpeed);
+  expect(asteroid._model.vertices[0][0])
+    .toEqual(objModels.Asteroid[0].vertices[0][0] * model.Asteroid.largeScale)
+  
+  mockRandom.mockRestore();
+});
+
+test('Test asteroid movement calculation', () => {
+  let mockRandom = jest.spyOn(Math, 'random')
+      .mockImplementation(() => 0);
+
+  let asteroid = new model.Asteroid([0, 0], model.Asteroid.largeScale);
+  asteroid.updateState(new intf.Control(), 1);
+  expect(asteroid._movement[0]).toEqual(0);
+  expect(asteroid._movement[1])
+    .toEqual(objModels.Asteroid[0].maxSpeed / model.Asteroid.largeScale)
+
+  mockRandom.mockRestore();
+});
+
+test('Test generator timer', () => {
+  let mockCreate = jest.spyOn(
+    model.ObjectGenerator.prototype,
+    '_createNewAsteroids')
+      .mockImplementation(() => undefined);
+
+  let generator = new model.ObjectGenerator();
+  generator.makeNewObjectsFor(new List(), [100, 100]);
+  generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid / 2);
+  generator.makeNewObjectsFor(new List(), [100, 100]);
+  expect(mockCreate).not.toHaveBeenCalled()
+
+  generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid * 2);
+  generator.makeNewObjectsFor(new List(), [100, 100]);
+  expect(mockCreate).toHaveBeenCalledTimes(1);
+  
+  mockCreate.mockRestore();
+});
+
+test('Test generator only makes asteroids when none left', () => {
+  let objList = new List();
+  objList.push(new model.Asteroid([0, 0], model.Asteroid.largeScale));
+
+  let generator = new model.ObjectGenerator();
+  generator.makeNewObjectsFor(objList, [100, 100]);
+  expect(generator._action).toBe(undefined);
+
+  generator.makeNewObjectsFor(new List(), [100, 100]);
+  expect(generator._action).not.toBe(undefined);
+});
+
+test('Test new asteroid position calculation', () => {
+  // For a dozen calculations with ship in different parts of screen,
+  //     1. Make sure its a safe distance away from ship
+  //     2. Make sure its on canvas
+  for (let ii = 0; ii < 10; ii++) {
+    
+    // Add new spaceship to a random point on screen
+    let objList = new List();
+    let screenSize = [800, 600];
+    let spaceshipCoordinates = [
+      Math.random() * screenSize[0],
+      Math.random() * screenSize[1],
+    ];
+    
+    objList.push(new model.Spaceship(spaceshipCoordinates, 0));
+    
+    // Generate asteroids - make sure they're not too close
+    let generator = new model.ObjectGenerator();
+    generator.makeNewObjectsFor(objList, screenSize);
+    generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid * 2);
+    generator.makeNewObjectsFor(objList, screenSize);
+
+    for (let obj of Array.from(objList)) {
+      if (obj.type === objModels.ModelType.asteroid) {
+        expect(obj.coordinates[0]).toBeGreaterThanOrEqual(0);
+        expect(obj.coordinates[0]).toBeLessThanOrEqual(screenSize[0]);
+        
+        expect(obj.coordinates[1]).toBeGreaterThanOrEqual(0);
+        expect(obj.coordinates[1]).toBeLessThanOrEqual(screenSize[1]);
+
+        let translation = [
+          obj.coordinates[0] - spaceshipCoordinates[0],
+          obj.coordinates[1] - spaceshipCoordinates[1],
+        ];
+
+        let distance = Math.sqrt(translation[0]**2 + translation[1]**2);
+        let minDistance = Math.sqrt(
+          (screenSize[0]/2)**2 +
+            (screenSize[1]/2)**2) *
+            model.ObjectGenerator.minSafeDistancePercent;
+        
+        expect(distance).toBeGreaterThanOrEqual(minDistance);
+      }
+    }
+  }
+});
+
+test('Test number of asteroids generated per level', () => {
+  let mockCalculate = jest.spyOn(
+    model.ObjectGenerator.prototype,
+    '_calculateNewAsteroidPos')
+      .mockImplementation(() => [0, 0]);
+
+  let generator = new model.ObjectGenerator();
+  
+  for (let ii = 1; ii < 10; ii++) {
+
+    let objList = new List();
+    generator.makeNewObjectsFor(objList, [100, 100]);
+    generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid * 2);
+    generator.makeNewObjectsFor(objList, [100, 100]);
+
+    expect(objList.length).toEqual(
+      model.ObjectGenerator.startingAsteroidCount + Math.floor(ii/2));
+  }
+
+  mockCalculate.mockRestore();
+});

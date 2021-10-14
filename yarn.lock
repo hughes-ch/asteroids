@@ -2845,6 +2845,11 @@ json5@^2.1.2:
   dependencies:
     minimist "^1.2.5"
 
+just-clone@^3.2.1:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/just-clone/-/just-clone-3.2.1.tgz#7396be5790d33f0fa7e8a145d7983b986a8cee39"
+  integrity sha512-PFotEVrrzAnwuWTUOFquDShWrHnUnhxNrVs1VFqkNfnoH3Sn5XUlDOePYn2Vv5cN8xV2y69jf8qEoQHm7eoLnw==
+
 kind-of@^6.0.2:
   version "6.0.3"
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.3.tgz#07c05034a6c349fa06e24fa35aa76db4580ce4dd"
