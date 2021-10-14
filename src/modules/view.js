@@ -125,10 +125,10 @@ export class View {
       // Translate object model to correct coordinate
       let translatedCoordArray = [];
 
-      obj.vertices.forEach((coordinate) => {
+      for (let coordinate of obj.vertices) {
         translatedCoordArray.push(
           math.add(coordinate, obj.translation));
-      });
+      }
       
       this._canvas.drawObject(translatedCoordArray);
     }

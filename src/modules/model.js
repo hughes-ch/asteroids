@@ -20,14 +20,14 @@ import {List} from 'collections/list'
  * @param {Number} rotation Amount to rotate
  * @return {Array} Rotated vector
  */
-let rotateVector = (vector, rotation) => {
+function rotateVector(vector, rotation) {
   const rotationInRad = rotation * math.pi / 180;
-  // return math.rotate(vector, rotationInRad);
+
   return [
     vector[0] * math.cos(rotationInRad) - vector[1] * math.sin(rotationInRad),
     vector[0] * math.sin(rotationInRad) + vector[1] * math.cos(rotationInRad),
   ];
-};
+}
 
 /** 
  * Utility function to collect garbage from list
@@ -35,7 +35,7 @@ let rotateVector = (vector, rotation) => {
  * @param {List}  list  List to clean
  * @return {undefined}
  */
-let collectGarbage = (list) => {
+function collectGarbage(list) {
   list.deleteAll(
     { isGarbage: true, },
     (element1, element2) => element1.isGarbage === element2.isGarbage);
@@ -78,7 +78,7 @@ export class GameObject {
     this.coordinates = objParams.coordinates;
     this.isGarbage = false;
     this.type = type;
-    this._childObjects = new List();
+    this._childObjects = [];
     this._movement = objParams.movement;
     this._rotation = objParams.rotation;
 
@@ -155,9 +155,9 @@ export class GameObject {
     }
 
     // Update child objects
-    this._childObjects.forEach((childObj) => {
-      childObj.updateState(control, numSecSinceLastUpdate);
-    });
+    for (let obj of this._childObjects) {
+      obj.updateState(control, numSecSinceLastUpdate);
+    }
 
     this._addResultingChildObjects(control);
 
@@ -192,9 +192,9 @@ export class GameObject {
   decompose() {
     // Rotate object model
     let rotatedModel = [];
-    this._model.vertices.forEach((vertex) => {
+    for (let vertex of this._model.vertices) {
       rotatedModel.push(rotateVector(vertex, this._rotation));
-    });
+    }
 
     let decomposedObj = [{
       rotation: this._rotation,
@@ -204,10 +204,9 @@ export class GameObject {
     }];
 
     // Decompose child objects
-    this._childObjects.forEach((child) => {
+    for (let child of this._childObjects) {
       decomposedObj = decomposedObj.concat(child.decompose());
-    });
-
+    }
     return decomposedObj;
   }
 
@@ -454,16 +453,12 @@ export class Spaceship extends UserControlledGameObject {
   _addResultingChildObjects(control) {
     
     // Add/remove thruster
-    let elementTypeMatches = (element1, element2) => {
-      return element1.type === element2.type;
-    };
-
-    let thrusterObj = {
-      type: objModels.ModelType.thruster,
-    };
+    let thrusterIdx = this.childObjects.findIndex((element) => {
+      return element.type === objModels.ModelType.thruster;
+    });
     
     if (control.thrust) {
-      if (!this.childObjects.has(thrusterObj, elementTypeMatches)) {
+      if (thrusterIdx < 0) {
         this.childObjects.push(
           new Thruster(
             this.coordinates,
@@ -472,7 +467,9 @@ export class Spaceship extends UserControlledGameObject {
       }
       
     } else {
-      this.childObjects.delete(thrusterObj, elementTypeMatches);
+      if (thrusterIdx >= 0) {
+        this.childObjects.splice(thrusterIdx, 1);
+      }
     }
 
     // Add missile shooting from nose
@@ -555,11 +552,11 @@ export class ObjectGenerator {
     }
 
     // Create asteroids if there's an empty list
-    let asteroid = {
-      type: objModels.ModelType.asteroid,
+    let isAsteroid = (element) => {
+      return element.type === objModels.ModelType.asteroid;
     };
 
-    if (!objectList.has(asteroid, this._objTypesMatch)) {
+    if (!objectList.find(isAsteroid)) {
       this._action = this._createNewAsteroids;
       this._timer = ObjectGenerator.timeToGenerateAsteroid;
     }
@@ -583,26 +580,17 @@ export class ObjectGenerator {
   }
 
   /**
-   * Utility function to determine if object types match
-   *
-   * Meant to be used in List.get, List.has, etc
-   */
-  _objTypesMatch(obj1, obj2) {
-    return obj1.type === obj2.type;
-  }
-
-  /**
    * Finds ship coordinates
    *
    * @param {List}  objList  List of objects in frame
    * @return {Array} or {undefined}
    */
   _findShipCoordinates(objList) {
-    let shipType = {
-      type: objModels.ModelType.spaceship,
+    let isSpaceship = (element) => {
+      return element.type === objModels.ModelType.spaceship;
     };
 
-    let shipObj = objList.get(shipType, this._objTypesMatch);
+    let shipObj = objList.find(isSpaceship);
     return shipObj === undefined ? undefined : shipObj.coordinates;
   }
 
@@ -713,7 +701,7 @@ class GameStateModel {
     this._outputQueue = outputQueue;
     this._lastControl = undefined;
     this._lastUpdateTime = undefined;
-    this._objectList = new List();
+    this._objectList = [];
   }
 
   /**
@@ -747,16 +735,16 @@ class GameStateModel {
     generator.updateTimers(elapsedTime);
     generator.makeNewObjectsFor(this._objectList, control.windowSize);
 
-    this._objectList.forEach((obj) => {
+    for (let obj of this._objectList) {
       obj.updateState(control, elapsedTime);
 
-      this._objectList.forEach((remoteObj) => {
+      for (let remoteObj of this._objectList) {
         if (obj.collidesWith(remoteObj)) {
           obj.destroy();
           remoteObj.destroy();
         }
-      });
-    });
+      }
+    }
 
     // Add clean Frame to the queue
     collectGarbage(this._objectList);
@@ -810,10 +798,10 @@ class GameStateModel {
   _sendFrame(control) {
     let frame = new intf.Frame();
     frame.windowSize = control.windowSize;
-        
-    this._objectList.forEach((obj) => {
+
+    for (let obj of this._objectList) {
       frame.add(obj);
-    });
+    }
     
     this._outputQueue.enqueue(frame);
   }

@@ -494,27 +494,27 @@ test('Test generator timer', () => {
       .mockImplementation(() => undefined);
 
   let generator = new model.ObjectGenerator();
-  generator.makeNewObjectsFor(new List(), [100, 100]);
+  generator.makeNewObjectsFor([], [100, 100]);
   generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid / 2);
-  generator.makeNewObjectsFor(new List(), [100, 100]);
+  generator.makeNewObjectsFor([], [100, 100]);
   expect(mockCreate).not.toHaveBeenCalled()
 
   generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid * 2);
-  generator.makeNewObjectsFor(new List(), [100, 100]);
+  generator.makeNewObjectsFor([], [100, 100]);
   expect(mockCreate).toHaveBeenCalledTimes(1);
   
   mockCreate.mockRestore();
 });
 
 test('Test generator only makes asteroids when none left', () => {
-  let objList = new List();
+  let objList = [];
   objList.push(new model.Asteroid([0, 0], model.Asteroid.largeScale));
 
   let generator = new model.ObjectGenerator();
   generator.makeNewObjectsFor(objList, [100, 100]);
   expect(generator._action).toBe(undefined);
 
-  generator.makeNewObjectsFor(new List(), [100, 100]);
+  generator.makeNewObjectsFor([], [100, 100]);
   expect(generator._action).not.toBe(undefined);
 });
 
@@ -525,7 +525,7 @@ test('Test new asteroid position calculation', () => {
   for (let ii = 0; ii < 10; ii++) {
     
     // Add new spaceship to a random point on screen
-    let objList = new List();
+    let objList = [];
     let screenSize = [800, 600];
     let spaceshipCoordinates = [
       Math.random() * screenSize[0],
@@ -575,7 +575,7 @@ test('Test number of asteroids generated per level', () => {
   
   for (let ii = 1; ii < 10; ii++) {
 
-    let objList = new List();
+    let objList = [];
     generator.makeNewObjectsFor(objList, [100, 100]);
     generator.updateTimers(model.ObjectGenerator.timeToGenerateAsteroid * 2);
     generator.makeNewObjectsFor(objList, [100, 100]);

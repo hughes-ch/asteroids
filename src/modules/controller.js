@@ -152,7 +152,7 @@ export class Controller {
    */
   _handleResizeEvent() {
     this._currentControlState.windowSize = this._getWindowSize();
-    this._sendControl(this._currentControlState);
+    this._eventQueue.enqueue(this._currentControlState);
   }
 
   /**
