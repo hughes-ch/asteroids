@@ -1,3 +1,4 @@
+'use strict';
 /**
  * Model module
  * 
@@ -11,36 +12,8 @@ import * as intf from './interfaces.js'
 import * as math from 'mathjs'
 import * as objModels from './objModels.js'
 import clone from 'just-clone'
-import {List} from 'collections/list'
+import Deque from 'collections/deque'
 import earcut from 'earcut'
-
-/**
- * Utility function to rotate a vector
- *
- * @param {Array} vector    Vector to rotate
- * @param {Number} rotation Amount to rotate
- * @return {Array} Rotated vector
- */
-function rotateVector(vector, rotation) {
-  const rotationInRad = rotation * math.pi / 180;
-
-  return [
-    vector[0] * math.cos(rotationInRad) - vector[1] * math.sin(rotationInRad),
-    vector[0] * math.sin(rotationInRad) + vector[1] * math.cos(rotationInRad),
-  ];
-}
-
-/** 
- * Utility function to collect garbage from list
- *
- * @param {List}  list  List to clean
- * @return {undefined}
- */
-function collectGarbage(list) {
-  list.deleteAll(
-    { isGarbage: true, },
-    (element1, element2) => element1.isGarbage === element2.isGarbage);
-};
 
 /**
  * Object parameters class
@@ -138,6 +111,22 @@ class TriangulatedObj {
 export class GameObject {
 
   /**
+   * Utility function to rotate a vector
+   *
+   * @param {Array} vector    Vector to rotate
+   * @param {Number} rotation Amount to rotate
+   * @return {Array} Rotated vector
+   */
+  static rotateVector(vector, rotation) {
+    const rotationInRad = rotation * math.pi / 180;
+
+    return [
+      vector[0] * math.cos(rotationInRad) - vector[1] * math.sin(rotationInRad),
+      vector[0] * math.sin(rotationInRad) + vector[1] * math.cos(rotationInRad),
+    ];
+  }
+
+  /**
    * Constructor
    *
    * @param {objModels.ModelType} type      Type of object
@@ -224,7 +213,7 @@ export class GameObject {
       math.multiply(this.movement, numSecSinceLastUpdate));
 
     // Determine wrapped coordinates
-    if (control.windowSize.every((size) => size < Infinity)) {
+    if (control.windowSize[0] < Infinity && control.windowSize[1] < Infinity) {
       for (let ii = 0; ii < this.coordinates.length; ii++) {
 
         if (this.coordinates[ii] > control.windowSize[ii]) {
@@ -294,7 +283,7 @@ export class GameObject {
     // Rotate object model
     let rotatedModel = [];
     for (let vertex of this._model.vertices) {
-      rotatedModel.push(rotateVector(vertex, this.rotation));
+      rotatedModel.push(GameObject.rotateVector(vertex, this.rotation));
     }
 
     return {
@@ -364,7 +353,7 @@ export class Missile extends GameObject {
    */
   constructor(coordinates, movement, rotation) {
     let missileMovement = math.add(
-      rotateVector(
+      GameObject.rotateVector(
         [0, objModels.Missile.maxSpeed],
         rotation),
       movement);
@@ -457,7 +446,7 @@ export class Asteroid extends GameObject {
     if (this.movement === undefined) {
       let movementVec = [0, this._model.maxSpeed / this._scale];
       let movementAngle = Math.random() * 360;
-      this.movement = rotateVector(movementVec, movementAngle);
+      this.movement = GameObject.rotateVector(movementVec, movementAngle);
     }
 
     return this.movement;
@@ -513,7 +502,7 @@ class UserControlledGameObject extends GameObject {
     let accelerationVector = [0, 0];
     
     if (control.thrust) {
-      accelerationVector = rotateVector(
+      accelerationVector = GameObject.rotateVector(
         [0, this._model.maxThrust],
         this.rotation);
     }
@@ -623,7 +612,7 @@ export class ObjectGenerator {
    * @return {ObjectGenerator}
    */
   constructor() {
-    this._actions = [];
+    this._actions = new Deque();
     this._level = 1;
     this._gameObjects = [];
     this._isGameInitialized = false;
@@ -648,14 +637,14 @@ export class ObjectGenerator {
    * @return {undefined}
    */
   makeNewObjectsFor(control) {
-
     // Make sure spaceship is always in model
     let spaceshipTimer = this._isGameInitialized ?
         ObjectGenerator.timeBetweenLives : -1;
-    
+
+    const compareFuncs = (elem1, elem2) => elem1 === elem2.func;
+
     if (this._findShip() === undefined &&
-        !this._actions.find(
-          (element) => element.func === this._createNewShip)) {
+        this._actions.findValue(this._createNewShip, compareFuncs) < 0) {
       
       this._actions.unshift({
         func: this._createNewShip,
@@ -666,10 +655,8 @@ export class ObjectGenerator {
     this._isGameInitialized = true;
 
     // Create asteroids if there's an empty list
-    if (!this._gameObjects.find(
-          (element) => element.type === objModels.ModelType.asteroid) &&
-        !this._actions.find(
-          (element) => element.func === this._createNewAsteroids)) {
+    if (!this._gameObjects.find((element) => element.type === objModels.ModelType.asteroid) &&
+        this._actions.findValue(this._createNewAsteroids, compareFuncs) < 0) {
       
       this._actions.unshift({
         func: this._createNewAsteroids,
@@ -1002,7 +989,7 @@ class GameStateModel {
     }
 
     // Add clean Frame to the queue
-    collectGarbage(this._objectList);
+    this._collectGarbage(this._objectList);
     this._sendFrame(control);
   }
 
@@ -1059,6 +1046,16 @@ class GameStateModel {
     }
     
     this._outputQueue.enqueue(frame);
+  }
+
+  /** 
+   * Utility function to collect garbage from list
+   *
+   * @param {List}  list  List to clean
+   * @return {undefined}
+   */
+  _collectGarbage(list) {
+    this._objectList = this._objectList.filter((element) => element.isGarbage === false);
   }
 };
 

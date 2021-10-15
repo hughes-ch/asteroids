@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Containers module
  * 
@@ -155,7 +157,7 @@ export class Control {
     copyControl.rotate = this.rotate;
     copyControl.shoot = this.shoot;
     copyControl.thrust = this.thrust;
-    copyControl.windowSize = Array.from(this.windowSize);
+    copyControl.windowSize = [this.windowSize[0], this.windowSize[1]];
     return copyControl;
   }
 

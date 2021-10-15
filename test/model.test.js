@@ -783,4 +783,18 @@ test('Test position changes if windowSize changes', () => {
   ship.updateState(control, 0);
   expect(ship.coordinates[0]).toEqual(10);
   expect(ship.coordinates[1]).toEqual(10);
-}); 
+});
+
+test('Test garbage is collected at end of each frame update', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  let control = new intf.Control()
+
+  inputQueue.enqueue(control);
+  
+  gameModel.updateFrame();
+  gameModel._currentState._objectList[0].isGarbage = true;
+  gameModel.updateFrame();
+  expect(gameModel._currentState._objectList.length).toEqual(0);
+});

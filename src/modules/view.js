@@ -1,3 +1,4 @@
+'use strict';
 /**
  * View module
  * 
@@ -21,9 +22,6 @@ export class Canvas {
    *
    */
   constructor() {
-    this.height = 0;
-    this.width = 0;
-    this._context = undefined;
   }
 
   /**
@@ -32,7 +30,10 @@ export class Canvas {
    * @return {undefined} 
    */
   resetCanvas() {
-    this._context.fillRect(0, 0, this.width, this.height);
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
   /**
@@ -42,17 +43,21 @@ export class Canvas {
    * @return {undefined}
    */
   drawObject(coordinates) {
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+    context.strokeStyle = '#FFF';
+    context.lineWidth = 2.0;
 
-    this._context.beginPath();
-    this._context.moveTo(coordinates[0][0], coordinates[0][1]);
+    context.beginPath();
+    context.moveTo(coordinates[0][0], coordinates[0][1]);
 
     for (let ii = 1; ii < coordinates.length; ii++)
     {
-      this._context.lineTo(coordinates[ii][0], coordinates[ii][1]);
+      context.lineTo(coordinates[ii][0], coordinates[ii][1]);
     }
     
-    this._context.closePath();
-    this._context.stroke();
+    context.closePath();
+    context.stroke();
   }
 
   /**
@@ -61,16 +66,8 @@ export class Canvas {
    */
   initializeCanvas() {
     let canvas = document.getElementById('canvas');
-
-    this.width = window.outerWidth;
-    this.height = window.innerHeight;
-    canvas.width = this.width;
-    canvas.height = this.height;
-
-    this._context = canvas.getContext('2d');
-    this._context.fillStyle = '#000';
-    this._context.strokeStyle = '#FFF';
-    this._context.lineWidth = 2.0;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   }
 };
 
@@ -121,13 +118,12 @@ export class View {
     this._canvas.resetCanvas();
 
     for (let obj of nextFrame) {
-
       // Translate object model to correct coordinate
       let translatedCoordArray = [];
 
-      for (let coordinate of obj.vertices) {
+      for (let vertex of obj.vertices) {
         translatedCoordArray.push(
-          math.add(coordinate, obj.translation));
+          math.add(vertex, obj.translation));
       }
       
       this._canvas.drawObject(translatedCoordArray);
