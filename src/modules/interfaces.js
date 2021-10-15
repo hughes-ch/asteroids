@@ -92,7 +92,7 @@ export class Frame {
    * @param {GameObject} obj
    */
   add(obj) {
-    this._objModels = this._objModels.concat(obj.decompose())
+    this._objModels.push(obj.decompose());
   }
 
   /** 

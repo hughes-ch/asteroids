@@ -12,6 +12,7 @@ import * as math from 'mathjs'
 import * as objModels from './objModels.js'
 import clone from 'just-clone'
 import {List} from 'collections/list'
+import earcut from 'earcut'
 
 /**
  * Utility function to rotate a vector
@@ -62,6 +63,75 @@ class ObjectParameters {
 };
 
 /**
+ * A Game Model represented as a cluster of trianges. Used for collision.
+ *
+ */
+class TriangulatedObj {
+
+  /**
+   * Constructor
+   *
+   * @param  {Array}  model  List of vertices
+   * @return {TriangulatedObj}
+   */
+  constructor(model) {
+
+    // Verify flatTriangles.length is a factor of three. Otherwise, the
+    // earcut algorithm gave us something we didn't expect.
+    let flatTriangles = earcut(model.flat());
+
+    this._triangles = [];
+    if (flatTriangles.length % 3) {
+      return;
+    }
+
+    for (let ii = 0; ii < flatTriangles.length; ii += 3) {
+      this._triangles.push([]);
+      for (let jj = 0; jj < 3; jj++) {
+        this._triangles[this._triangles.length-1].push({
+          x: model[flatTriangles[ii+jj]][0],
+          y: model[flatTriangles[ii+jj]][1],
+        });
+      }
+    }
+  }
+
+  /**
+   * Determines if a polygon contains any point in a series
+   *
+   * @param  {Array}  points  Coordinates to check
+   * @return {Boolean}
+   */
+  contains(points) {
+    for (let triangle of this._triangles) {
+      for (let point of points) {
+        if (this._isPointInTriangle(triangle, point)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Determines if a single point is within a single triangle
+   *
+   * @param {Array}  t  coordinates of triangle
+   * @param {Array}  p  coordinate to test
+   * @return {Boolean}
+   */
+  _isPointInTriangle(t, p) {
+
+    let denominator = ((t[1].y-t[2].y) * (t[0].x-t[2].x) + (t[2].x-t[1].x) * (t[0].y-t[2].y));
+    let a = ((t[1].y-t[2].y) * (p[0]-t[2].x) + (t[2].x-t[1].x) * (p[1]-t[2].y)) / denominator;
+    let b = ((t[2].y-t[0].y) * (p[0]-t[2].x) + (t[0].x-t[2].x) * (p[1]-t[2].y)) / denominator;
+    let c = 1 - a - b;
+    
+    return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1;
+  }
+};
+
+/**
  * A game object - not intended to be instantiated, but serve as a base class
  *
  */
@@ -77,10 +147,9 @@ export class GameObject {
   constructor(type, objParams) {
     this.coordinates = objParams.coordinates;
     this.isGarbage = false;
+    this.movement = objParams.movement;
+    this.rotation = objParams.rotation;
     this.type = type;
-    this._childObjects = [];
-    this._movement = objParams.movement;
-    this._rotation = objParams.rotation;
 
     // Choose object model
     switch (this.type) {
@@ -135,11 +204,11 @@ export class GameObject {
     }
     
     // Determine coordinates
-    this._movement = this._calculateMovement(control, numSecSinceLastUpdate);
+    this.movement = this._calculateMovement(control, numSecSinceLastUpdate);
 
     this.coordinates = math.add(
       this.coordinates,
-      math.multiply(this._movement, numSecSinceLastUpdate));
+      math.multiply(this.movement, numSecSinceLastUpdate));
 
     // Determine wrapped coordinates
     if (control.windowSize.every((size) => size < Infinity)) {
@@ -153,17 +222,17 @@ export class GameObject {
         }
       }
     }
-
-    // Update child objects
-    for (let obj of this._childObjects) {
-      obj.updateState(control, numSecSinceLastUpdate);
-    }
-
-    this._addResultingChildObjects(control);
-
-    // Collect garbage
-    collectGarbage(this._childObjects);
   }
+
+  /**
+   * Determines if this object can collide with the other
+   *
+   * @param  {GameObject}  obj  The other game object to check
+   * @return {Boolean}
+   */
+  canCollideWith(obj) {
+    return false;
+  };
 
   /**
    * calculates if an object collides with another
@@ -172,7 +241,21 @@ export class GameObject {
    * @return {Boolean}
    */
   collidesWith(obj) {
-    return false;
+    // Make sure the types can actually collide
+    if (!this.canCollideWith(obj)) {
+      return false;
+    }
+
+    // Triangulate both models
+    const thisModel = this.getTranslatedModel();
+    const thatModel = obj.getTranslatedModel();
+    
+    let triangulatedThis = new TriangulatedObj(thisModel);
+    let triangulatedThat = new TriangulatedObj(thatModel);
+
+    // Check if either model has points within the other polygon
+    return triangulatedThis.contains(thatModel) ||
+      triangulatedThat.contains(thisModel);
   }
 
   /**
@@ -181,6 +264,7 @@ export class GameObject {
    * @return {[GameObject]} A list of gameObjects
    */
   destroy() {
+    this.isGarbage = true;
     return [];
   }
 
@@ -193,30 +277,31 @@ export class GameObject {
     // Rotate object model
     let rotatedModel = [];
     for (let vertex of this._model.vertices) {
-      rotatedModel.push(rotateVector(vertex, this._rotation));
+      rotatedModel.push(rotateVector(vertex, this.rotation));
     }
 
-    let decomposedObj = [{
-      rotation: this._rotation,
+    return {
+      rotation: this.rotation,
       translation: this.coordinates,
       type: this.type,
       vertices: rotatedModel,
-    }];
-
-    // Decompose child objects
-    for (let child of this._childObjects) {
-      decomposedObj = decomposedObj.concat(child.decompose());
-    }
-    return decomposedObj;
+    };
   }
 
   /**
-   * Getter for childObjects
+   * Gets the translated model
    *
-   * @return {Array}  Child Objects
+   * @return {Array}
    */
-  get childObjects() {
-    return this._childObjects;
+  getTranslatedModel() {
+    let translatedModel = [];
+    let decomposedModel = this.decompose();
+    
+    for (let vertex of decomposedModel.vertices) {
+      translatedModel.push(math.add(vertex, decomposedModel.translation));
+    }
+
+    return translatedModel;
   }
 
   /** 
@@ -242,17 +327,7 @@ export class GameObject {
    * @return {Array} Updated movement vector
    */
   _calculateMovement(control, elapsedTime) {
-    return this._movement;
-  }
-
-  /**
-   * Creates any objects as a result of this control
-   *
-   * @param {obj}  control  Control object
-   * @return {Array}  Array of new objects
-   */
-  _addResultingChildObjects(control) {
-    return;
+    return this.movement;
   }
 };
 
@@ -284,6 +359,16 @@ export class Missile extends GameObject {
 
     super(objModels.ModelType.missile, objParams);
   }
+
+  /**
+   * Determines if this object can collide with the other
+   *
+   * @param  {GameObject}  obj  The other game object to check
+   * @return {Boolean}
+   */
+  canCollideWith(obj) {
+    return obj.type === objModels.ModelType.asteroid;
+  };
 };
 
 /**
@@ -296,7 +381,11 @@ export class Asteroid extends GameObject {
    * Static "Constants"
    *
    */
+  static get debrisCount() { return 2; }
+  
   static get largeScale() { return 3; }
+  static get mediumScale() { return 1; }
+  static get smallScale() { return 0.5; }
 
   /**
    * Constructor
@@ -317,6 +406,28 @@ export class Asteroid extends GameObject {
   }
 
   /**
+   * Destroys the game object and returns its parts
+   *
+   * @return {[GameObject]} A list of gameObjects
+   */
+  destroy() {
+    this.isGarbage = true;
+
+    let debris = [];
+    if (this._scale !== Asteroid.smallScale) {
+      let newScale = this._scale == Asteroid.largeScale ?
+          Asteroid.mediumScale :
+          Asteroid.smallScale;
+      
+      for (let ii = 0; ii < Asteroid.debrisCount; ii++) {
+        debris.push(new Asteroid(this.coordinates, newScale));
+      }
+    }
+
+    return debris;
+  }
+
+  /**
    * Returns updated movement vector
    *
    * @param {obj}   control      Control object
@@ -326,14 +437,24 @@ export class Asteroid extends GameObject {
   _calculateMovement(control, elapsedTime) {
 
     // Movement must be calculated after model is chosen by base class
-    if (this._movement === undefined) {
+    if (this.movement === undefined) {
       let movementVec = [0, this._model.maxSpeed / this._scale];
       let movementAngle = Math.random() * 360;
-      this._movement = rotateVector(movementVec, movementAngle);
+      this.movement = rotateVector(movementVec, movementAngle);
     }
 
-    return this._movement;
+    return this.movement;
   }
+
+  /**
+   * Determines if this object can collide with the other
+   *
+   * @param  {GameObject}  obj  The other game object to check
+   * @return {Boolean}
+   */
+  canCollideWith(obj) {
+    return obj.type === objModels.ModelType.missile;
+  };
 };
 
 /**
@@ -367,8 +488,8 @@ class UserControlledGameObject extends GameObject {
     let scaledRotationChange =
         this._model.rotationSpeed * elapsedTime * control.rotate;
 
-    this._rotation += scaledRotationChange;
-    this._rotation = this._normalizeRotation(this._rotation);
+    this.rotation += scaledRotationChange;
+    this.rotation = this._normalizeRotation(this.rotation);
 
     // Determine acceleration. 
     let accelerationVector = [0, 0];
@@ -376,7 +497,7 @@ class UserControlledGameObject extends GameObject {
     if (control.thrust) {
       accelerationVector = rotateVector(
         [0, this._model.maxThrust],
-        this._rotation);
+        this.rotation);
     }
 
     let scaledAccelerationVector = math.multiply(
@@ -385,11 +506,11 @@ class UserControlledGameObject extends GameObject {
 
     // Determine drag
     let dragEffect = math.multiply(
-      math.multiply(this._movement, this._model.drag),
+      math.multiply(this.movement, this._model.drag),
       elapsedTime);
     
     // Determine movement vector
-    let updatedMovement = this._movement;
+    let updatedMovement = this.movement;
     
     if (control.thrust) {
       updatedMovement = math.add(updatedMovement, scaledAccelerationVector);
@@ -443,49 +564,10 @@ export class Spaceship extends UserControlledGameObject {
 
     super(objModels.ModelType.spaceship, objParams);
   }
-
-  /**
-   * Adds any objects created as a result of this control
-   *
-   * @param {obj}  control  Control object
-   * @return {Array}  Array of new objects
-   */
-  _addResultingChildObjects(control) {
-    
-    // Add/remove thruster
-    let thrusterIdx = this.childObjects.findIndex((element) => {
-      return element.type === objModels.ModelType.thruster;
-    });
-    
-    if (control.thrust) {
-      if (thrusterIdx < 0) {
-        this.childObjects.push(
-          new Thruster(
-            this.coordinates,
-            this._movement,
-            this._rotation));
-      }
-      
-    } else {
-      if (thrusterIdx >= 0) {
-        this.childObjects.splice(thrusterIdx, 1);
-      }
-    }
-
-    // Add missile shooting from nose
-    if (control.shoot) {
-      let newMissileLoc = math.add(
-        rotateVector(this._model.vertices[0], this._rotation),
-        this.coordinates);
-
-      this.childObjects.push(
-        new Missile(newMissileLoc, this._movement, this._rotation));
-    }
-  }
 };
 
 /**
- * Generator
+ * Real-time object generator
  *
  * In the standard game of asteroids, four asteroids would be generated in the
  * first level. Once all asteroids were destroyed, a new set would be created.
@@ -512,85 +594,193 @@ export class ObjectGenerator {
    * @return {ObjectGenerator}
    */
   constructor() {
-    this._action = undefined;
-    this._timer = undefined;
+    this._actions = [];
     this._level = 1;
+    this._gameObjects = [];
   }
 
   /** 
-   * Updates internal timers
+   * Updates internal timers and object list
    *
+   * @param {Array}  Collection of GameObjects
    * @param {Number} elapsedTime Elapsed time since last frame (sec)
    * @return {undefined}
    */
-  updateTimers(elapsedTime) {
-    if (this._timer !== undefined) {
-      this._timer -= elapsedTime;
+  updateState(objList, elapsedTime) {
+    this._gameObjects = objList;
+    this._actions.map((action) => action.timer -= elapsedTime);
+  }
+
+  /**
+   * Generates more stuff based on the control
+   *
+   * @param {Control} control Control for this frame
+   * @return {undefined}
+   */
+  makeNewObjectsFor(control) {
+
+    // Create asteroids if there's an empty list
+    if (!this._gameObjects.find(
+          (element) => element.type === objModels.ModelType.asteroid) &&
+        !this._actions.find(
+          (element) => element.func === this._createNewAsteroids)) {
+      
+      this._actions.unshift({
+        func: this._createNewAsteroids,
+        timer: ObjectGenerator.timeToGenerateAsteroid,
+      });
+    }
+
+    // Add missile shooting from nose of ship
+    if (control.shoot) {
+      this._actions.unshift({
+        func: this._createNewMissile,
+        timer: -1,
+      });
+    }
+
+    // Add/remove thruster
+    if (control.thrust) {
+      if (this._findThrusterIdx() < 0) {
+        this._actions.unshift({
+          func: this._createThruster,
+          timer: -1,
+        });
+      }
+
+    } else {
+      if (this._findThrusterIdx() >= 0) {
+        this._actions.unshift({
+          func: this._removeThruster,
+          timer: -1,
+        });
+      }
+    }
+
+    // Handle any expired actions
+    this._actions = this._actions.sorted((left, right) => {
+      return right.timer - left.timer;
+    });
+    
+    while(this._actions.length > 0) {
+      let action = this._actions.peekBack();
+      if (action.timer <= 0) {
+        action.func.call(this, control);
+        this._actions.pop();
+
+      } else {
+        break;
+      }
     }
   }
 
   /**
-   * Generates more stuff for this object list
+   * Create debris for colliding objects
    *
-   * @param {List}    objectList   List of objects in frame
-   * @param {Array}   screenSize   Size of screen [x,y]
+   * @param {Array}  debris  Debris to add to model
    * @return {undefined}
    */
-  makeNewObjectsFor(objectList, screenSize) {
-
-    // First, check if there's an ongoing action
-    if (this._action !== undefined) {
-      
-      if (this._timer <= 0) {
-        this._action(objectList, screenSize);
-        this._action = undefined;
-        this._timer = undefined;
-        
-      } else {
-        return;
-      }
-    }
-
-    // Create asteroids if there's an empty list
-    let isAsteroid = (element) => {
-      return element.type === objModels.ModelType.asteroid;
-    };
-
-    if (!objectList.find(isAsteroid)) {
-      this._action = this._createNewAsteroids;
-      this._timer = ObjectGenerator.timeToGenerateAsteroid;
-    }
+  createDebrisFor(debris) {
+    debris.forEach((newObj) => this._gameObjects.push(newObj));
   }
 
   /**
    * Create new asteroids
    *
-   * @param {List}  objectList  List to add asteroids
-   * @param {Array} screenSize  Size of screen [x, y]
+   * @param {Control}  control  Control for this frame
    * @return {undefined} 
    */
-  _createNewAsteroids(objList, screenSize) {
+  _createNewAsteroids(control) {
     let numAsteroids = ObjectGenerator.startingAsteroidCount +
         math.floor(this._level++ / 2);
 
     for (let ii = 0; ii < numAsteroids; ii++) {
-      let coordinates = this._calculateNewAsteroidPos(objList, screenSize);
-      objList.push(new Asteroid(coordinates, Asteroid.largeScale));
+      let coordinates = this._calculateNewAsteroidPos(control.windowSize);
+      this._gameObjects.push(new Asteroid(coordinates, Asteroid.largeScale));
     }
+  }
+
+  /**
+   * Create new missile
+   *
+   * @param {Control}  control  Control for this frame
+   * @return {undefined}
+   */
+  _createNewMissile(control) {
+    
+    let shipObj = this._findShip();
+    let newMissileLoc = shipObj.getTranslatedModel()[0];      
+
+    this._gameObjects.push(
+      new Missile(newMissileLoc, [0, 0], shipObj.rotation));
+  }
+
+  /**
+   * Add ephemeral thrust object
+   *
+   * @param {Control}  control  Control for this frame
+   * @return {undefined}
+   */
+  _createThruster(control) {
+    // Add thruster
+    let ship = this._findShip();
+    
+    this._gameObjects.push(
+      new Thruster(
+        ship.coordinates,
+        ship.movement,
+        ship.rotation));
+  }
+
+  /**
+   * Remove ephemeral thrust object
+   *
+   * @param {Control}  control  Control for this frame
+   * @return {undefined}
+   */
+  _removeThruster(control) {
+    // Remove thruster
+    let thrusterIdx = this._findThrusterIdx();
+    
+    if (thrusterIdx >= 0) {
+      this._gameObjects.splice(thrusterIdx, 1);
+    }
+  }
+
+  /**
+   * Finds thruster index in array
+   *
+   * @param {Array}  objList  Collection of objects in frame
+   * @return {GameObj} or {undefined}
+   */
+  _findThrusterIdx() {
+    return this._gameObjects.findIndex((element) => {
+      return element.type === objModels.ModelType.thruster;
+    });
+  }
+
+  /**
+   * Finds ship object in list
+   *
+   * @param {Array}  objList  List of objects in frame
+   * @return {GameObj} or {undefined}
+   */
+  _findShip() {
+    let isSpaceship = (element) => {
+      return element.type === objModels.ModelType.spaceship;
+    };
+
+    return this._gameObjects.find(isSpaceship);
   }
 
   /**
    * Finds ship coordinates
    *
-   * @param {List}  objList  List of objects in frame
+   * @param {Array}  objList  List of objects in frame
    * @return {Array} or {undefined}
    */
-  _findShipCoordinates(objList) {
-    let isSpaceship = (element) => {
-      return element.type === objModels.ModelType.spaceship;
-    };
-
-    let shipObj = objList.find(isSpaceship);
+  _findShipCoordinates() {
+    let shipObj = this._findShip();
     return shipObj === undefined ? undefined : shipObj.coordinates;
   }
 
@@ -601,7 +791,7 @@ export class ObjectGenerator {
    * @param {Array} screenSize
    * @return {Array} Coordinates of new asteroid
    */
-  _calculateNewAsteroidPos(objList, screenSize) {
+  _calculateNewAsteroidPos(screenSize) {
     while (true) {
       // Calculate new position
       // 
@@ -615,7 +805,7 @@ export class ObjectGenerator {
 
       let minDistance = maxDistance * ObjectGenerator.minSafeDistancePercent;
       let yCoordinate = Math.random() * screenSize[1];
-      let shipCoordinates = this._findShipCoordinates(objList);
+      let shipCoordinates = this._findShipCoordinates();
       let distance = (Math.random() * (maxDistance-minDistance)) + minDistance;
 
       let xCoordinate = Math.sqrt((distance**2) -
@@ -680,6 +870,7 @@ export class Model {
   updateFrame() {
     this._currentState.updateFrame(this._generator);
   }
+
 };
 
 /**
@@ -732,16 +923,16 @@ class GameStateModel {
     let control = this._getControlForFrame();
     let elapsedTime = this._calculateElapsedTime();
 
-    generator.updateTimers(elapsedTime);
-    generator.makeNewObjectsFor(this._objectList, control.windowSize);
+    generator.updateState(this._objectList, elapsedTime);
+    generator.makeNewObjectsFor(control);
 
     for (let obj of this._objectList) {
       obj.updateState(control, elapsedTime);
 
       for (let remoteObj of this._objectList) {
         if (obj.collidesWith(remoteObj)) {
-          obj.destroy();
-          remoteObj.destroy();
+          generator.createDebrisFor(obj.destroy());
+          generator.createDebrisFor(remoteObj.destroy());
         }
       }
     }

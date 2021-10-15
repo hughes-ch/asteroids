@@ -76,7 +76,7 @@ test('Test view with full queue', () => {
     gameView.renderCanvas();
     
     // Make sure each object is drawn with correct coordinates
-    let lastObjInFrame = objects[ii][objects[ii].length-1].decompose()[0];
+    let lastObjInFrame = objects[ii][objects[ii].length-1].decompose();
     let objTranslation = lastObjInFrame.translation;
     let objVertices = lastObjInFrame.vertices;
 
