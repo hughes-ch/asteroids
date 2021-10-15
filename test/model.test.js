@@ -759,3 +759,16 @@ test('Verify garbage does not collide with other stuff', () => {
   asteroid.isGarbage = true;
   expect(asteroid.collidesWith(ship)).toBe(false);
 });
+
+test('Test there is no thruster added with no ship', () => {
+  let generator = new model.ObjectGenerator();
+  generator._isGameInitialized = true;
+  
+  let objList = [];
+  let control = new intf.Control();
+  control.thrust = true;
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+
+  expect(objList.length).toBe(0);
+}); 

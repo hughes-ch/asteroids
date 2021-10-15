@@ -673,20 +673,22 @@ export class ObjectGenerator {
     }
 
     // Add/remove thruster
-    if (control.thrust) {
-      if (this._findThrusterIdx() < 0) {
-        this._actions.unshift({
-          func: this._createThruster,
-          timer: -1,
-        });
-      }
+    if (this._findShip() !== undefined) {
+      if (control.thrust) {
+        if (this._findThrusterIdx() < 0) {
+          this._actions.unshift({
+            func: this._createThruster,
+            timer: -1,
+          });
+        }
 
-    } else {
-      if (this._findThrusterIdx() >= 0) {
-        this._actions.unshift({
-          func: this._removeThruster,
-          timer: -1,
-        });
+      } else {
+        if (this._findThrusterIdx() >= 0) {
+          this._actions.unshift({
+            func: this._removeThruster,
+            timer: -1,
+          });
+        }
       }
     }
 
