@@ -5,12 +5,12 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
-import * as containers from '../src/modules/containers.js'
+import * as intf from '../src/modules/interfaces.js'
 import {Spaceship} from '../src/modules/model.js'
 import * as view from '../src/modules/view.js';
 
 beforeEach(() => {
-  jest.spyOn(view.Canvas.prototype, '_initialize')
+  jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
     .mockImplementation(() => undefined);
   jest.spyOn(view.Canvas.prototype, 'drawObject')
     .mockImplementation(() => undefined);
@@ -21,48 +21,46 @@ afterEach(() => {
 });
   
 test('Test view with nothing in input queue', () => {
-  let inputQueue = new containers.Queue();
+  let inputQueue = new intf.Queue();
   let gameView = new view.View(inputQueue);
 
   let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas');
-
   gameView.renderCanvas();
   expect(mockResetCanvas).not.toHaveBeenCalled();
+  mockResetCanvas.mockRestore();
 });
 
 test('Test view with full queue', () => {
   // Create objects
   let objects = [
     [
-      new Spaceship([100, 100]),
-      new Spaceship([200, 200]),
-      new Spaceship([300, 300])
+      new Spaceship([100, 100], 0),
+      new Spaceship([200, 200], 50),
+      new Spaceship([300, 300], 100)
     ],
     [
-      new Spaceship([150, 150]),
-      new Spaceship([250, 250])
+      new Spaceship([150, 150], 0),
+      new Spaceship([250, 250], 50)
     ],
     [
-      new Spaceship([175, 175]),
-      new Spaceship([275, 275]),
-      new Spaceship([375, 375])
+      new Spaceship([175, 175], 0),
+      new Spaceship([275, 275], 50),
+      new Spaceship([375, 375], 100)
     ]
   ];
 
   // Fill frames
   let frames = [];
-  let queue = new containers.Queue();
+  let queue = new intf.Queue();
 
   for (let ii = 0; ii < objects.length; ii++)
   {
-    frames.push(new containers.Frame());
+    frames.push(new intf.Frame());
     
     for (let jj = 0; jj < objects[ii].length; jj++)
     {
       frames[ii].add(objects[ii][jj]);
     }
-
-    queue.enqueue(frames[ii]);
   }
   
   // Mock functions and render canvas
@@ -74,6 +72,7 @@ test('Test view with full queue', () => {
 
   for (let ii = 0; ii < frames.length; ii++)
   {
+    queue.enqueue(frames[ii]);
     gameView.renderCanvas();
     
     // Make sure each object is drawn with correct coordinates
@@ -94,4 +93,68 @@ test('Test view with full queue', () => {
 
   // Check canvas is reset between frames
   expect(mockResetCanvas).toHaveBeenCalledTimes(frames.length);
-}); 
+
+  mockResetCanvas.mockRestore();
+  mockDrawObject.mockRestore();
+});
+
+test('Test window resizing', () => {
+
+  // Mock initialize method
+  let mockInitialize = jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
+      .mockImplementation(() => undefined);
+  let mockResetCanvas = jest.spyOn(view.Canvas.prototype, 'resetCanvas')
+    .mockImplementation(() => undefined);
+
+  // Verify initialize called after window is resized
+  let inputQueue = new intf.Queue();
+  let gameView = new view.View(inputQueue);
+
+  let frame1 = new intf.Frame();
+  inputQueue.enqueue(frame1);
+  gameView.renderCanvas();
+  mockInitialize.mockReset();
+
+  let frame2 = new intf.Frame();
+  frame2.windowSize = [100, 100];
+  inputQueue.enqueue(frame2);
+  gameView.renderCanvas();
+  expect(mockInitialize).toHaveBeenCalled();
+  
+  mockInitialize.mockRestore();
+});
+
+test('Test that extra frames are discarded', () => {
+  // Create objects
+  let objects = [
+    [new Spaceship([100, 100], 0)],
+    [new Spaceship([150, 150], 0)],
+    []
+  ];
+
+  // Fill frames
+  let queue = new intf.Queue();
+
+  for (let objList of objects) {
+    let frame = new intf.Frame();
+    
+    for (let obj of objList) {
+      frame.add(obj)
+    }
+
+    queue.enqueue(frame);
+  }
+  
+  // Mock functions and render canvas
+  let gameView = new view.View(queue);
+  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas')
+    .mockImplementation(() => undefined);
+  let mockDrawObject = jest.spyOn(gameView._canvas, 'drawObject')
+    .mockImplementation(() => undefined);
+
+  // Check draw object never called (meaning only last, empty frame rendered)
+  expect(mockDrawObject).toHaveBeenCalledTimes(0);
+
+  mockResetCanvas.mockRestore();
+  mockDrawObject.mockRestore();
+});

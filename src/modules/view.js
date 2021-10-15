@@ -1,3 +1,4 @@
+'use strict';
 /**
  * View module
  * 
@@ -12,6 +13,8 @@
  * Interacts with the HTML canvas.
  *
  */
+import * as math from 'mathjs'
+
 export class Canvas {
   
   /**
@@ -19,7 +22,6 @@ export class Canvas {
    *
    */
   constructor() {
-    this._initialize();
   }
 
   /**
@@ -28,7 +30,10 @@ export class Canvas {
    * @return {undefined} 
    */
   resetCanvas() {
-    this._context.fillRect(0, 0, this.width, this.height);
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
   /**
@@ -38,35 +43,31 @@ export class Canvas {
    * @return {undefined}
    */
   drawObject(coordinates) {
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+    context.strokeStyle = '#FFF';
+    context.lineWidth = 2.0;
 
-    this._context.beginPath();
-    this._context.moveTo(coordinates[0][0], coordinates[0][1]);
+    context.beginPath();
+    context.moveTo(coordinates[0][0], coordinates[0][1]);
 
     for (let ii = 1; ii < coordinates.length; ii++)
     {
-      this._context.lineTo(coordinates[ii][0], coordinates[ii][1]);
+      context.lineTo(coordinates[ii][0], coordinates[ii][1]);
     }
     
-    this._context.closePath();
-    this._context.stroke();
+    context.closePath();
+    context.stroke();
   }
 
   /**
    * Initialize canvas
    *
    */
-  _initialize() {
+  initializeCanvas() {
     let canvas = document.getElementById('canvas');
-
-    this.width = window.innerWidth * 0.8;
-    this.height = window.innerHeight * 0.8;
-    canvas.width = this.width;
-    canvas.height = this.height;
-
-    this._context = canvas.getContext('2d');
-    this._context.fillStyle = '#000';
-    this._context.strokeStyle = '#FFF';
-    this._context.lineWidth = 2.0;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   }
 };
 
@@ -84,6 +85,7 @@ export class View {
   constructor(inputQueue) {
     this._inputQueue = inputQueue;
     this._canvas = new Canvas();
+    this._prevFrame = undefined;
   }
 
   /**
@@ -92,30 +94,43 @@ export class View {
    * @return {undefined}
    */
   renderCanvas() {
+
+    // Get the latest frame - discard any earlier ones in queue
+    let nextFrame = undefined;
     
-    // Don't touch canvas if nothing is in the queue
-    if (this._inputQueue.length === 0) {
+    while (this._inputQueue.length > 0) {
+      nextFrame = this._inputQueue.dequeue();
+    }
+
+    if (nextFrame === undefined) {
       return;
     }
 
+    // If the canvas size changed or this is the first Frame, initialize canvas
+    if (this._prevFrame === undefined ||
+        this._prevFrame.windowSize[0] !== nextFrame.windowSize[0] ||
+        this._prevFrame.windowSize[1] !== nextFrame.windowSize[1]) {
+      
+      this._canvas.initializeCanvas();
+    }
+
+    // Draw next frame
     this._canvas.resetCanvas();
 
-    // Dequeue next frame
-    let nextFrame = this._inputQueue.dequeue();
-
     for (let obj of nextFrame) {
-
       // Translate object model to correct coordinate
       let translatedCoordArray = [];
-      for (let coordinate of Array.from(obj.vertices)) {
-        translatedCoordArray.push([
-          coordinate[0] + obj.translation[0],
-          coordinate[1] + obj.translation[1]
-        ]);
-      }
 
+      for (let vertex of obj.vertices) {
+        translatedCoordArray.push(
+          math.add(vertex, obj.translation));
+      }
+      
       this._canvas.drawObject(translatedCoordArray);
     }
+
+    // Save frame history
+    this._prevFrame = nextFrame;
   }
 };
 

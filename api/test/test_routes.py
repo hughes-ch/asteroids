@@ -31,44 +31,9 @@ class TestRoutes():
         
         app = create_app()
 
-        js_path = (
-            pathlib.Path(__file__).parent /
-            pathlib.Path(Settings.instance()['js-directory']))
-        
-        js_files = list(js_path.rglob('*.js'))
-
         with app.test_client() as client:
-            assert len(js_files) > 0
-            
-            for js_file in js_files:
-                rel_path = js_file.relative_to(js_path)
-                response = client.get(
-                    f'/{Settings.instance()["js-url"]}/{rel_path}')
+            response = client.get('/').data
+            soup = bs4.BeautifulSoup(response, 'html.parser')
+            js_url = soup.find(id='asteroids-entry')['src']
 
-                assert response.status_code == 200, (
-                    f'{rel_path} not retrieved successfully '
-                    f'[{response.status_code}]')
-
-    def test_serve_js_safe(self):
-        """ Test that serve_js is safe """
-        app = create_app()
-
-        js_path = (
-            pathlib.Path(__file__).parent /
-            pathlib.Path(Settings.instance()['js-directory']))
-                
-        not_accessible_files = list(js_path.glob('../*'))
-
-        with app.test_client() as client:
-            assert len(not_accessible_files) > 0
-
-            for na_file in not_accessible_files:
-                rel_path = na_file.relative_to(js_path)
-                response = client.get(
-                    f'/{Settings.instance()["js-url"]}/{rel_path}')
-
-                assert response.status_code != 200, (
-                    f'{rel_path} retrieved successfully when it should '
-                    f'be inaccessible [{response.status_code}]')
-                    
-
+            assert client.get(js_url).status_code == 200
