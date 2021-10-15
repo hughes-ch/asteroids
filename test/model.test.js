@@ -771,4 +771,16 @@ test('Test there is no thruster added with no ship', () => {
   generator.makeNewObjectsFor(control);
 
   expect(objList.length).toBe(0);
+});
+
+test('Test position changes if windowSize changes', () => {
+  let ship = new model.Spaceship([100, 100], 0);
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  ship.updateState(control, 0);
+
+  control.windowSize = [100, 100];
+  ship.updateState(control, 0);
+  expect(ship.coordinates[0]).toEqual(10);
+  expect(ship.coordinates[1]).toEqual(10);
 }); 

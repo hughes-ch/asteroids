@@ -150,6 +150,7 @@ export class GameObject {
     this.movement = objParams.movement;
     this.rotation = objParams.rotation;
     this.type = type;
+    this._lastCanvasSize = undefined;
 
     // Choose object model
     switch (this.type) {
@@ -196,6 +197,18 @@ export class GameObject {
    * @return {undefined}
    */
   updateState(control, numSecSinceLastUpdate) {
+    // Do as close to the expected thing as possible if the canvas size changes
+    if (this._lastCanvasSize !== undefined &&
+        (this._lastCanvasSize[0] !== control.windowSize[0] ||
+         this._lastCanvasSize[1] !== control.windowSize[1])) {
+
+      let xscale = control.windowSize[0]/this._lastCanvasSize[0];
+      let yscale = control.windowSize[1]/this._lastCanvasSize[1];
+      this.coordinates[0] *= xscale;
+      this.coordinates[1] *= yscale;
+    }
+    
+    this._lastCanvasSize = control.windowSize;
 
     // Determine if object is at end-of-life
     this._model.lifetime -= numSecSinceLastUpdate;

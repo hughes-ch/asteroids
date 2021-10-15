@@ -52,6 +52,11 @@ export class Controller {
       this._handleKeyboardEvent('up', event);
     });
 
+    // Window resize event
+    window.addEventListener('resize', (event) => {
+      this._handleResizeEvent(event);
+    });
+    
     // Click events. The first click sets up touch and
     // orientation events. Subsequent clicks interacts
     // with canvas.
@@ -150,7 +155,7 @@ export class Controller {
    *
    * @return {undefined}
    */
-  _handleResizeEvent() {
+  _handleResizeEvent(event) {
     this._currentControlState.windowSize = this._getWindowSize();
     this._eventQueue.enqueue(this._currentControlState);
   }
