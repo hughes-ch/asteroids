@@ -518,17 +518,17 @@ test('Test generator timer', () => {
 
 test('Test generator only makes asteroids when none left', () => {
   let objList = [];
+  objList.push(new model.Spaceship([1000, 1000], 0));
   objList.push(new model.Asteroid([0, 0], model.Asteroid.largeScale));
 
   let control = new intf.Control();
-  control.windowSize = [100, 100];
-  
   let generator = new model.ObjectGenerator();
   generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
   expect(generator._actions.length).toEqual(0);
 
-  generator.updateState([], 0);
+  objList.pop();
+  generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
   expect(generator._actions.length).toEqual(1);
 });
@@ -595,11 +595,11 @@ test('Test number of asteroids generated per level', () => {
 
   let generator = new model.ObjectGenerator();
   let control = new intf.Control();
-  control.windowSize = [100, 100];
+  control.windowSize = [1000, 1000];
   
   for (let ii = 1; ii < 10; ii++) {
 
-    let objList = [];
+    let objList = [new model.Spaceship([100, 100], 0)];
     generator.updateState(objList, 0);
     generator.makeNewObjectsFor(control);
     generator.updateState(
@@ -608,11 +608,55 @@ test('Test number of asteroids generated per level', () => {
     
     generator.makeNewObjectsFor(control);
 
-    expect(objList.length).toEqual(
+    const isAsteroid = (element) =>
+          element.type === objModels.ModelType.asteroid;
+    
+    expect(objList.filter(isAsteroid).length).toEqual(
       model.ObjectGenerator.startingAsteroidCount + Math.floor(ii/2));
   }
 
   mockCalculate.mockRestore();
+});
+
+test('Test number of asteroids generated with no ship', () => {
+  let generator = new model.ObjectGenerator();
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  
+  let objList = [new model.Spaceship([0, 0], 0)];
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+
+  objList = [];
+  generator.updateState(
+    objList,
+    model.ObjectGenerator.timeToGenerateAsteroid * 2);
+  
+  generator.makeNewObjectsFor(control);
+
+  const isAsteroid = (element) =>
+        element.type === objModels.ModelType.asteroid;
+  
+  expect(objList.filter(isAsteroid).length).toEqual(0);
+});
+
+test('Test asteroid calculation when not enough room on screen', () => {
+  let generator = new model.ObjectGenerator();
+  let control = new intf.Control();
+  let objList = [];
+
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+  generator.updateState(
+    objList,
+    model.ObjectGenerator.timeToGenerateAsteroid * 2);
+  
+  generator.makeNewObjectsFor(control);
+
+  const isAsteroid = (element) =>
+        element.type === objModels.ModelType.asteroid;
+  
+  expect(objList.filter(isAsteroid).length).toEqual(0);
 });
 
 test('Test that an asteroid/missile collision is detected', () => {
@@ -667,4 +711,51 @@ test('Test what happens when an asteroid is destroyed', () => {
   expect(asteroid.isGarbage).toBe(true);
 
   mockRandom.mockRestore();  
+});
+
+test('Test that an asteroid/ship collision is detected', () => {
+  let asteroid = new model.Asteroid([100, 100], model.Asteroid.largeScale);
+  let ship = new model.Spaceship([100, 100], 0);
+  expect(asteroid.collidesWith(ship)).toBe(true);
+});
+
+test('Test what happens when a ship is destroyed', () => {
+  let ship = new model.Spaceship([100, 100], 0);
+  let debris = ship.destroy();
+  expect(ship.isGarbage).toBe(true);
+  expect(debris.length).toEqual(0);
+});
+
+test('Verify the generator creates a new ship after one is destroyed', () => {
+  // Initialize model with spaceship
+  let control = new intf.Control();
+  let gameObjects = [ new model.Spaceship([100, 100], 0) ];
+  let generator = new model.ObjectGenerator();
+  generator.updateState(gameObjects, 0);
+  generator.makeNewObjectsFor(control);
+
+  // Destroy spaceship
+  gameObjects = [];
+  generator.updateState(gameObjects, 0);
+  generator.makeNewObjectsFor(control);
+
+  // Verify spaceship added back after timer expires
+  generator.updateState(gameObjects, 0);
+  generator.makeNewObjectsFor(control);
+  generator.updateState(
+    gameObjects,
+    model.ObjectGenerator.timeBetweenLives * 2);
+  
+  generator.makeNewObjectsFor(control);
+  
+  expect(gameObjects.filter(
+    (element) => element.type === objModels.ModelType.spaceship).length)
+    .toEqual(1);
+});
+
+test('Verify garbage does not collide with other stuff', () => {
+  let asteroid = new model.Asteroid([100, 100], model.Asteroid.largeScale);
+  let ship = new model.Spaceship([100, 100], 0);
+  asteroid.isGarbage = true;
+  expect(asteroid.collidesWith(ship)).toBe(false);
 });

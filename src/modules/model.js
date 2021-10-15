@@ -246,6 +246,10 @@ export class GameObject {
       return false;
     }
 
+    if (this.isGarbage || obj.isGarbage) {
+      return false;
+    }
+
     // Triangulate both models
     const thisModel = this.getTranslatedModel();
     const thatModel = obj.getTranslatedModel();
@@ -453,7 +457,8 @@ export class Asteroid extends GameObject {
    * @return {Boolean}
    */
   canCollideWith(obj) {
-    return obj.type === objModels.ModelType.missile;
+    return obj.type === objModels.ModelType.missile ||
+      obj.type == objModels.ModelType.spaceship;
   };
 };
 
@@ -564,6 +569,16 @@ export class Spaceship extends UserControlledGameObject {
 
     super(objModels.ModelType.spaceship, objParams);
   }
+
+  /**
+   * Determines if this object can collide with the other
+   *
+   * @param  {GameObject}  obj  The other game object to check
+   * @return {Boolean}
+   */
+  canCollideWith(obj) {
+    return obj.type === objModels.ModelType.asteroid;
+  };
 };
 
 /**
@@ -585,8 +600,9 @@ export class ObjectGenerator {
    *
    */
   static get minSafeDistancePercent() { return 0.4; }
-  static get timeToGenerateAsteroid() { return 1.0; }
   static get startingAsteroidCount() { return 4; }
+  static get timeBetweenLives() { return 3; }
+  static get timeToGenerateAsteroid() { return 1.0; }
 
   /**
    * Constructor
@@ -597,6 +613,7 @@ export class ObjectGenerator {
     this._actions = [];
     this._level = 1;
     this._gameObjects = [];
+    this._isGameInitialized = false;
   }
 
   /** 
@@ -618,6 +635,22 @@ export class ObjectGenerator {
    * @return {undefined}
    */
   makeNewObjectsFor(control) {
+
+    // Make sure spaceship is always in model
+    let spaceshipTimer = this._isGameInitialized ?
+        ObjectGenerator.timeBetweenLives : -1;
+    
+    if (this._findShip() === undefined &&
+        !this._actions.find(
+          (element) => element.func === this._createNewShip)) {
+      
+      this._actions.unshift({
+        func: this._createNewShip,
+        timer: spaceshipTimer,
+      });
+    }
+
+    this._isGameInitialized = true;
 
     // Create asteroids if there's an empty list
     if (!this._gameObjects.find(
@@ -675,6 +708,16 @@ export class ObjectGenerator {
   }
 
   /**
+   * Creates a new spaceship
+   *
+   * @return {undefined}
+   */
+  _createNewShip(control) {
+    this._gameObjects.push(
+      new Spaceship(math.divide(control.windowSize, 2), 180));
+  }
+
+  /**
    * Create debris for colliding objects
    *
    * @param {Array}  debris  Debris to add to model
@@ -691,12 +734,22 @@ export class ObjectGenerator {
    * @return {undefined} 
    */
   _createNewAsteroids(control) {
+    // Do not create asteroids without ship
+    if (this._findShip() === undefined) {
+      return;
+    }
+
     let numAsteroids = ObjectGenerator.startingAsteroidCount +
         math.floor(this._level++ / 2);
 
     for (let ii = 0; ii < numAsteroids; ii++) {
       let coordinates = this._calculateNewAsteroidPos(control.windowSize);
-      this._gameObjects.push(new Asteroid(coordinates, Asteroid.largeScale));
+
+      // Couldn't find coordinates that worked in a reasonable time
+      // User gets away with one
+      if (coordinates !== undefined) {
+        this._gameObjects.push(new Asteroid(coordinates, Asteroid.largeScale));
+      }
     }
   }
 
@@ -792,7 +845,7 @@ export class ObjectGenerator {
    * @return {Array} Coordinates of new asteroid
    */
   _calculateNewAsteroidPos(screenSize) {
-    while (true) {
+    for (let tryCount = 0; tryCount < 5; tryCount++) {
       // Calculate new position
       // 
       // Randomly select Y. Then make X satisfy:
@@ -908,10 +961,6 @@ class GameStateModel {
 
       if (this._inputQueue.length > 0) {
         let control = this._inputQueue.dequeue();
-
-        this._objectList.push(
-          new Spaceship(math.divide(control.windowSize, 2), 180));
-
         this._lastControl = control;
         
       } else {
