@@ -17,3 +17,11 @@ def index():
         'settings': Settings.instance()
     }
     return flask.render_template('index.html', **context)
+
+@bp.route('/robots.txt')
+def robots():
+    """ Serves the robot.txt page """
+    contents = flask.render_template('robots.txt');
+    response = flask.make_response(contents)
+    response.headers['Content-Type'] = 'text'
+    return response
