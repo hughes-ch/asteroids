@@ -1,1 +1,1 @@
-web: yarn build && gunicorn --chdir api --bind localhost:5000 'src:create_app()'
+web: yarn api-install && yarn build && gunicorn --chdir api 'src:create_app()'
