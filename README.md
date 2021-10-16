@@ -3,17 +3,17 @@
 # Asteroids
 A single page web app implementation of the classic game of Asteroids.
 
-The game itself is written in JavaScript. The backend is managed by Python's Flask framework. 
+The game itself is written in JavaScript. The backend is managed by Python's Flask framework. The app is hosted on Heroku and any pushes to main are automatically deployed.
 
 ## Project Organization
 This project's been designed so that the Flask application and Javascript are side-by-side:
 
     LICENSE
     package.json
+    requirements.txt
     README.md
     api
     |----manifest.in
-    |----requirements.txt
     |----setup.py
     |----src
     |    |----*.ini
@@ -63,6 +63,13 @@ To start a development server on your local network, use this command:
 Then you can type "localhost:5000" into your browser search bar and the website will be rendered.
 Any machine on the local network will also be able to reach the website using your machine's IP and
 port 5000. This can be useful to test mobile.
+
+For debugging javascript unit tests, this command can be used:
+
+    yarn debug
+    
+The inspection tools can then connect to the node instance for debugging. For Python debugging, use
+pdb. 
   
 ## Workflow
 There are two permanent branches in this git repository:
