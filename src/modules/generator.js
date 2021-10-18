@@ -271,10 +271,15 @@ export class ObjectGenerator {
   _createNewMissile(control) {
     
     let shipObj = this._findShip();
-    let newMissileLoc = shipObj.getTranslatedModel()[0];      
-
+    if (shipObj === undefined) {
+      return;
+    }
+    
     this._gameObjects.push(
-      new go.Missile(newMissileLoc, [0, 0], shipObj.rotation));
+      new go.Missile(
+        shipObj.getTranslatedModel()[0],
+        [0, 0],
+        shipObj.rotation));
   }
 
   /**

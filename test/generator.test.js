@@ -471,3 +471,17 @@ test('Test blaster generation with no alien', () => {
   generator._createBlaster.call(generator, control);
 });
 
+test('Test missile generation with no ship', () => {
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let generator = new gen.ObjectGenerator();
+  generator.updateState([], 0);
+  generator.makeNewObjectsFor(control);
+
+  // As long as this handles gracefully, assume success
+  let objList = [];
+  generator.updateState(objList, 0);
+  generator._createNewMissile.call(generator, control);
+});
+
