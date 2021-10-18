@@ -1,3 +1,4 @@
+'use strict';
 /**
  * Tests for controller.js
  *

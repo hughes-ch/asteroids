@@ -1,3 +1,4 @@
+'use strict'
 /**
  * Tests for interfaces.js
  *
@@ -6,7 +7,7 @@
  *
  */
 import * as intf from '../src/modules/interfaces.js'
-import * as model from '../src/modules/model.js'
+import * as go from '../src/modules/gameObject.js'
 
 test('Test enqueueing items works correctly', () => {
   let queue = new intf.Queue();
@@ -30,9 +31,9 @@ test('Test dequeuing an empty queue', () => {
 
 test('Test Frame iteration', () => {
   let objects = [
-    new model.Spaceship([100, 100], 0),
-    new model.Spaceship([200, 200], 50),
-    new model.Spaceship([300, 300], 100)
+    new go.Spaceship([100, 100], 0),
+    new go.Spaceship([200, 200], 50),
+    new go.Spaceship([300, 300], 100)
   ];
 
   let frame = new intf.Frame();

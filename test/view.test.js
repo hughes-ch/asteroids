@@ -1,3 +1,4 @@
+'use strict';
 /**
  * Tests for view.js
  *
@@ -5,8 +6,8 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
+import * as go from '../src/modules/gameObject.js'
 import * as intf from '../src/modules/interfaces.js'
-import {Spaceship} from '../src/modules/model.js'
 import * as view from '../src/modules/view.js';
 
 beforeEach(() => {
@@ -34,18 +35,18 @@ test('Test view with full queue', () => {
   // Create objects
   let objects = [
     [
-      new Spaceship([100, 100], 0),
-      new Spaceship([200, 200], 50),
-      new Spaceship([300, 300], 100)
+      new go.Spaceship([100, 100], 0),
+      new go.Spaceship([200, 200], 50),
+      new go.Spaceship([300, 300], 100)
     ],
     [
-      new Spaceship([150, 150], 0),
-      new Spaceship([250, 250], 50)
+      new go.Spaceship([150, 150], 0),
+      new go.Spaceship([250, 250], 50)
     ],
     [
-      new Spaceship([175, 175], 0),
-      new Spaceship([275, 275], 50),
-      new Spaceship([375, 375], 100)
+      new go.Spaceship([175, 175], 0),
+      new go.Spaceship([275, 275], 50),
+      new go.Spaceship([375, 375], 100)
     ]
   ];
 
@@ -127,8 +128,8 @@ test('Test window resizing', () => {
 test('Test that extra frames are discarded', () => {
   // Create objects
   let objects = [
-    [new Spaceship([100, 100], 0)],
-    [new Spaceship([150, 150], 0)],
+    [new go.Spaceship([100, 100], 0)],
+    [new go.Spaceship([150, 150], 0)],
     []
   ];
 
