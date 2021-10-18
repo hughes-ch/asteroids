@@ -12,6 +12,39 @@ import * as gen from './generator.js'
 import * as go from './gameObject.js'
 import * as intf from './interfaces.js'
 
+/** 
+ * Keeps score
+ *
+ */
+export class ScoreKeeper {
+
+  /**
+   * Constructor
+   *
+   * @return {ScoreKeeper}
+   */
+  constructor() {
+    this.score = 0;
+    this.lives = 0;
+  }
+
+  /**
+   * Updates score based on the two objects that collided
+   *
+   * @param {GameObject}  obj1  First object in collision
+   * @param {GameObject}  obj2  Second object in collision
+   * @return {undefined} 
+   */
+  collectScore(obj1, obj2) {
+    let updates = obj1.score().stack(obj2.score());
+    
+    if (updates.owned) {
+      this.score += updates.scoreIncrease;
+      this.lives -= updates.livesLost;
+    }
+  }
+};
+
 /**
  * Game Model
  *
@@ -28,10 +61,11 @@ export class Model {
   constructor(inputQueue, outputQueue) {
     this._inputQueue = inputQueue;
     this._outputQueue = outputQueue;
+    this._score = new ScoreKeeper();
 
     this._gameStates = [
       undefined,
-      new GameStateModel(inputQueue, outputQueue),
+      new GameStateModel(inputQueue, outputQueue, this._score),
       undefined
     ];
 
@@ -60,16 +94,18 @@ class GameStateModel {
   /**
    * Constructor
    *
-   * @param {Queue} inputQueue  Queue of control objects
-   * @param {Queue} outputQueue Queue of Frame objects
+   * @param {Queue}       inputQueue   Queue of control objects
+   * @param {Queue}       outputQueue  Queue of Frame objects
+   * @param {ScoreKeeper} scoreKeeper  Maintains score
    * @return {GameStateModel}
    */
-  constructor(inputQueue, outputQueue) {
+  constructor(inputQueue, outputQueue, scoreKeeper) {
     this._inputQueue = inputQueue;
     this._outputQueue = outputQueue;
     this._lastControl = undefined;
     this._lastUpdateTime = undefined;
     this._objectList = [];
+    this._scoreKeeper = scoreKeeper;
   }
 
   /**
@@ -106,13 +142,14 @@ class GameStateModel {
         if (obj.collidesWith(remoteObj)) {
           generator.createDebrisFor(obj.destroy());
           generator.createDebrisFor(remoteObj.destroy());
+          this._scoreKeeper.collectScore(obj, remoteObj);          
         }
       }
     }
 
     // Add clean Frame to the queue
     this._collectGarbage(this._objectList);
-    this._sendFrame(control);
+    this._sendFrame(control, this._scoreKeeper);
   }
 
   /**
@@ -156,12 +193,15 @@ class GameStateModel {
   /** 
    * Adds a Frame to the queue
    * 
-   * @param {Control}  control  Control object for the frame
+   * @param {Control}      control      Control object for the frame
+   * @param {ScoreKeeper}  scoreKeeper  Maintains score
    * @return {undefined}
    */
-  _sendFrame(control) {
+  _sendFrame(control, scoreKeeper) {
     let frame = new intf.Frame();
     frame.windowSize = control.windowSize;
+    frame.score = scoreKeeper.score;
+    frame.lives = scoreKeeper.lives;
 
     for (let obj of this._objectList) {
       frame.add(obj);

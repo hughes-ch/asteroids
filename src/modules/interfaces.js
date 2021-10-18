@@ -84,6 +84,8 @@ export class Frame {
    * @return {Frame}
    */
   constructor() {
+    this.lives = 0;
+    this.score = 0;
     this.windowSize = [0, 0];
     this._objModels = [];
   }
@@ -172,6 +174,39 @@ export class Control {
     this.shoot = this.shoot || nextControl.shoot;
     this.thrust = this.thrust || nextControl.thrust;
     this.windowSize = nextControl.windowSize;
+  }
+};
+
+/**
+ * Details of a single score event
+ *
+ */
+export class Score {
+
+  /**
+   * Constructor
+   *
+   */
+  constructor() {
+    this.livesLost = 0;
+    this.scoreIncrease = 0;
+    this.owned = false;
+  }
+
+  /**
+   * "Stack" scores to handle multiple at once
+   *
+   * Newly stacked scores are returned. Original not modified
+   * 
+   * @param {Score}  nextScore  Next score to account for 
+   * @return {Score}
+   */
+  stack(nextScore) {
+    let stacked = new Score();
+    stacked.livesLost = this.livesLost + nextScore.livesLost;
+    stacked.scoreIncrease = this.scoreIncrease + nextScore.scoreIncrease;
+    stacked.owned = this.owned || nextScore.owned;
+    return stacked;
   }
 };
 

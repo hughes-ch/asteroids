@@ -436,3 +436,41 @@ test('Test alien can collide with missile', () => {
   expect(alien.collidesWith(missile)).toBe(true);
   expect(missile.collidesWith(alien)).toBe(true);
 });
+
+test('Test scores of each object', () => {
+  let alien = new go.Alien([0, 0]);
+  expect(alien.score().scoreIncrease).toBeGreaterThan(0);
+  expect(alien.score().livesLost).toEqual(0);
+  expect(alien.score().owned).toBe(false);
+  
+  let asteroidLarge = new go.Asteroid([0,0], go.Asteroid.largeScale);
+  expect(asteroidLarge.score().scoreIncrease).toBeGreaterThan(0);
+  expect(asteroidLarge.score().livesLost).toEqual(0);
+  expect(asteroidLarge.score().owned).toBe(false);
+
+  let asteroidMedium = new go.Asteroid([0,0], go.Asteroid.mediumScale);
+  expect(asteroidMedium.score().scoreIncrease).toBeGreaterThan(0);
+  expect(asteroidMedium.score().livesLost).toEqual(0);
+  expect(asteroidMedium.score().owned).toBe(false);
+
+  let asteroidSmall = new go.Asteroid([0,0], go.Asteroid.smallScale);
+  expect(asteroidSmall.score().scoreIncrease).toBeGreaterThan(0);
+  expect(asteroidSmall.score().livesLost).toEqual(0);
+  expect(asteroidSmall.score().owned).toBe(false);
+
+  let blaster = new go.Blaster([0, 0], 0);
+  expect(blaster.score().scoreIncrease).toEqual(0);
+  expect(blaster.score().livesLost).toEqual(0);
+  expect(blaster.score().owned).toBe(false);
+
+  let missile = new go.Missile([0, 0], 0);
+  expect(missile.score().scoreIncrease).toEqual(0);
+  expect(missile.score().livesLost).toEqual(0);
+  expect(missile.score().owned).toBe(true);
+
+  let spaceship = new go.Spaceship([0, 0], 0);
+  expect(spaceship.score().scoreIncrease).toEqual(0);
+  expect(spaceship.score().livesLost).toEqual(1);
+  expect(spaceship.score().owned).toBe(true);
+
+});

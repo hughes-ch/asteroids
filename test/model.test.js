@@ -161,3 +161,30 @@ test('Test garbage is collected at end of each frame update', () => {
   gameModel.updateFrame();
   expect(gameModel._currentState._objectList.length).toEqual(0);
 });
+
+test('Test the collection of a complex collision', () => {
+  let keeper = new model.ScoreKeeper();
+  let origLives = keeper.lives;
+  
+  let missile = new go.Missile([0, 0], [0, 0], 0);
+  let alien = new go.Alien([0, 0]);
+  keeper.collectScore(missile, alien);
+
+  let spaceship = new go.Spaceship([100, 100], 0);
+  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
+  keeper.collectScore(spaceship, asteroid);
+
+  expect(keeper.lives)
+    .toEqual(origLives - spaceship.score().livesLost);
+  expect(keeper.score)
+    .toEqual(alien.score().scoreIncrease + asteroid.score().scoreIncrease);
+});
+
+test('Test that non-owned collisions are not counted', () => {
+  let keeper = new model.ScoreKeeper();
+  let alien = new go.Alien([0, 0]);
+  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
+  keeper.collectScore(alien, asteroid);
+
+  expect(keeper.score).toEqual(0);
+});

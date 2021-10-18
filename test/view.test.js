@@ -10,10 +10,19 @@ import * as go from '../src/modules/gameObject.js'
 import * as intf from '../src/modules/interfaces.js'
 import * as view from '../src/modules/view.js';
 
+let mockInitialize;
+let mockDrawObject;
+let mockRenderText;
+let mockResetCanvas;
+
 beforeEach(() => {
-  jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
+  mockInitialize = jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
     .mockImplementation(() => undefined);
-  jest.spyOn(view.Canvas.prototype, 'drawObject')
+  mockDrawObject = jest.spyOn(view.Canvas.prototype, 'drawObject')
+    .mockImplementation(() => undefined);
+  mockRenderText = jest.spyOn(view.Canvas.prototype, 'renderText')
+    .mockImplementation(() => undefined);
+  mockResetCanvas = jest.spyOn(view.Canvas.prototype, 'resetCanvas')
     .mockImplementation(() => undefined);
 });
 
@@ -25,7 +34,6 @@ test('Test view with nothing in input queue', () => {
   let inputQueue = new intf.Queue();
   let gameView = new view.View(inputQueue);
 
-  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas');
   gameView.renderCanvas();
   expect(mockResetCanvas).not.toHaveBeenCalled();
   mockResetCanvas.mockRestore();
@@ -66,11 +74,6 @@ test('Test view with full queue', () => {
   
   // Mock functions and render canvas
   let gameView = new view.View(queue);
-  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas')
-    .mockImplementation(() => undefined);
-  let mockDrawObject = jest.spyOn(gameView._canvas, 'drawObject')
-    .mockImplementation(() => undefined);
-
   for (let ii = 0; ii < frames.length; ii++)
   {
     queue.enqueue(frames[ii]);
@@ -104,8 +107,6 @@ test('Test window resizing', () => {
   // Mock initialize method
   let mockInitialize = jest.spyOn(view.Canvas.prototype, 'initializeCanvas')
       .mockImplementation(() => undefined);
-  let mockResetCanvas = jest.spyOn(view.Canvas.prototype, 'resetCanvas')
-    .mockImplementation(() => undefined);
 
   // Verify initialize called after window is resized
   let inputQueue = new intf.Queue();
@@ -146,16 +147,24 @@ test('Test that extra frames are discarded', () => {
     queue.enqueue(frame);
   }
   
-  // Mock functions and render canvas
-  let gameView = new view.View(queue);
-  let mockResetCanvas = jest.spyOn(gameView._canvas, 'resetCanvas')
-    .mockImplementation(() => undefined);
-  let mockDrawObject = jest.spyOn(gameView._canvas, 'drawObject')
-    .mockImplementation(() => undefined);
-
   // Check draw object never called (meaning only last, empty frame rendered)
+  let gameView = new view.View(queue);
   expect(mockDrawObject).toHaveBeenCalledTimes(0);
 
   mockResetCanvas.mockRestore();
   mockDrawObject.mockRestore();
 });
+
+test('Test the score is rendered as text to the screen', () => {
+  let queue = new intf.Queue();
+  let gameView = new view.View(queue);
+  let frame = new intf.Frame();
+  frame.score = 20;
+  queue.enqueue(frame);
+  gameView.renderCanvas();
+
+  expect(mockRenderText).toHaveBeenCalledWith(
+    `SCORE: ${frame.score}`,
+    expect.anything(),
+    expect.anything());
+}); 

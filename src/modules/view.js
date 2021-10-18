@@ -69,6 +69,25 @@ export class Canvas {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
+
+  /**
+   * Renders text on screen
+   *
+   * @param {String}  text  Text to write
+   * @param {Number}  size  Size to write
+   * @param {Array}   pos   Position to write text
+   * @return {undefined}
+   */
+  renderText(text, size, pos) {
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+
+    context.font = `${size}px "VT323"`;
+    context.strokeStyle = '#FFF';
+    context.fillStyle = '#FFF';
+    context.lineWidth = 1.0;
+    context.fillText(text, pos[0], pos[1]);
+  }
 };
 
 /**
@@ -128,6 +147,13 @@ export class View {
       
       this._canvas.drawObject(translatedCoordArray);
     }
+
+    // Draw score
+    let textSize = Math.floor(nextFrame.windowSize[1] / 25);
+    this._canvas.renderText(
+      `SCORE: ${nextFrame.score}`,
+      textSize,
+      [0, textSize]);
 
     // Save frame history
     this._prevFrame = nextFrame;

@@ -6,6 +6,7 @@
  * :license: Mozilla Public License Version 2.0
  *
  */
+import * as intf from './interfaces.js'
 import * as math from 'mathjs'
 import * as objModels from './objModels.js'
 import clone from 'just-clone'
@@ -319,6 +320,15 @@ export class GameObject {
     return translatedModel;
   }
 
+  /**
+   * Returns a score object
+   *
+   * @return {Score}
+   */
+  score() {
+    return new intf.Score();
+  }
+
   /** 
    * Normalize a rotation to between 0 and 360
    *
@@ -395,6 +405,17 @@ export class Missile extends GameObject {
     return obj.type === objModels.ModelType.asteroid ||
       obj.type === objModels.ModelType.alien;
   };
+
+  /**
+   * Returns a score object
+   *
+   * @return {Score}
+   */
+  score() {
+    let newScore = new intf.Score();
+    newScore.owned = true;
+    return newScore;
+  }
 };
 
 /** 
@@ -501,6 +522,19 @@ export class Asteroid extends GameObject {
   }
 
   /**
+   * Returns a score object
+   *
+   * @return {Score}
+   */
+  score() {
+    let newScore = new intf.Score();
+    newScore.scoreIncrease = this._scale === Asteroid.largeScale ? 20 :
+      this._scale === Asteroid.mediumScale ? 50 : 100;
+
+    return newScore;
+  }
+
+  /**
    * Returns updated movement vector
    *
    * @param {obj}   control      Control object
@@ -563,6 +597,17 @@ export class Alien extends GameObject {
     this._nextJukeTime = this._calculateNextJukeTime();
     this._origMovementVect = undefined;
     this._timeElapsedSinceJuke = 0;
+  }
+
+  /**
+   * Returns a score object
+   *
+   * @return {Score}
+   */
+  score() {
+    let newScore = new intf.Score();
+    newScore.scoreIncrease = 200;
+    return newScore;
   }
 
   /**
@@ -762,4 +807,16 @@ export class Spaceship extends UserControlledGameObject {
       obj.type === objModels.ModelType.blaster ||
       obj.type === objModels.ModelType.alien;
   };
+
+  /**
+   * Returns a score object
+   *
+   * @return {Score}
+   */
+  score() {
+    let newScore = new intf.Score();
+    newScore.livesLost = 1;
+    newScore.owned = true;
+    return newScore;
+  }
 };

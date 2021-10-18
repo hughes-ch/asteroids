@@ -49,3 +49,24 @@ test('Test Frame iteration', () => {
     obj_idx++;
   }
 });
+
+test('Test stacking scores', () => {
+  let score1 = new intf.Score();
+  score1.livesLost = 1;
+  score1.scoreIncrease = 20;
+
+  let score2 = new intf.Score();
+  score2.scoreIncrease = 10;
+  
+  let score3 = new intf.Score();
+  score3.livesLost = 1;
+  score3.owned = true;
+
+  let stacked = score1.stack(score2.stack(score3));
+
+  expect(stacked.owned).toBe(true);
+  expect(stacked.scoreIncrease)
+    .toEqual(score1.scoreIncrease + score2.scoreIncrease);
+  expect(stacked.livesLost)
+    .toEqual(score1.livesLost + score3.livesLost);
+});
