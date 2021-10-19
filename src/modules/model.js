@@ -19,13 +19,20 @@ import * as intf from './interfaces.js'
 export class ScoreKeeper {
 
   /**
+   * Static "constants"
+   *
+   */
+  static get startingLives() { return 3; }
+  static get numPointsForNewLife() { return 10000; }
+
+  /**
    * Constructor
    *
    * @return {ScoreKeeper}
    */
   constructor() {
     this.score = 0;
-    this.lives = 0;
+    this.lives = ScoreKeeper.startingLives;
   }
 
   /**
@@ -42,6 +49,21 @@ export class ScoreKeeper {
       this.score += updates.scoreIncrease;
       this.lives -= updates.livesLost;
     }
+
+    if (this.score > ScoreKeeper.numPointsForNewLife &&
+        this.score % ScoreKeeper.numPointsForNewLife < updates.scoreIncrease) {
+      
+      this.lives += 1;
+    }
+  }
+
+  /**
+   * Returns a boolean indicating if game can keep going
+   *
+   * @return {Boolean}
+   */
+  allows() {
+    return this.lives > 0;
   }
 };
 
@@ -132,8 +154,10 @@ class GameStateModel {
     let control = this._getControlForFrame();
     let elapsedTime = this._calculateElapsedTime();
 
-    generator.updateState(this._objectList, elapsedTime);
-    generator.makeNewObjectsFor(control);
+    if (this._scoreKeeper.allows()) {
+      generator.updateState(this._objectList, elapsedTime);
+      generator.makeNewObjectsFor(control);
+    }
 
     for (let obj of this._objectList) {
       obj.updateState(control, elapsedTime);

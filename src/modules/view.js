@@ -73,16 +73,21 @@ export class Canvas {
   /**
    * Renders text on screen
    *
-   * @param {String}  text  Text to write
-   * @param {Number}  size  Size to write
-   * @param {Array}   pos   Position to write text
+   * @param {String}  text   Text to write
+   * @param {String}  size   Size to write
+   * @param {Array}   pos    Position to write text
+   * @param {Boolean} center Whether to center text
    * @return {undefined}
    */
-  renderText(text, size, pos) {
+  renderText(text, size, pos, center=false) {
     let canvas = document.getElementById('canvas');
     let context = canvas.getContext('2d');
 
-    context.font = `${size}px "VT323"`;
+    if (center) {
+      context.textAlign = 'center';
+    }
+
+    context.font = `${size} "VT323"`;
     context.strokeStyle = '#FFF';
     context.fillStyle = '#FFF';
     context.lineWidth = 1.0;
@@ -95,6 +100,14 @@ export class Canvas {
  *
  */
 export class View {
+
+  /**
+   * Static "constants"
+   *
+   */
+  static get sizeTitleText() { return 15 /* vw */; }
+  static get sizeSubtitleText() { return 10 /* vw */; }
+  static get sizeStandardText() { return 4 /* vw */; }
 
   /**
    * Constructor
@@ -149,11 +162,36 @@ export class View {
     }
 
     // Draw score
-    let textSize = Math.floor(nextFrame.windowSize[1] / 25);
-    this._canvas.renderText(
-      `SCORE: ${nextFrame.score}`,
-      textSize,
-      [0, textSize]);
+    if (nextFrame.lives <= 0) {
+      
+      this._canvas.renderText(
+        'GAME OVER',
+        `${View.sizeTitleText}vw`,
+        [nextFrame.windowSize[0]/2, nextFrame.windowSize[1]/2],
+        true);
+
+      let yoffset = (View.sizeTitleText/100) * nextFrame.windowSize[0];
+      
+      this._canvas.renderText(
+        `SCORE: ${nextFrame.score}`,
+        `${View.sizeSubtitleText}vw`,
+        [nextFrame.windowSize[0]/2, (nextFrame.windowSize[1]/2) + yoffset],
+        true);
+          
+    } else {
+      let textSize = `${View.sizeStandardText}vw`;
+      let yoffset = (View.sizeStandardText/100) * nextFrame.windowSize[0];
+      
+      this._canvas.renderText(
+        `SCORE: ${nextFrame.score}`,
+        textSize,
+        [0, yoffset]);
+
+      this._canvas.renderText(
+        `LIVES: ${nextFrame.lives}`,
+        textSize,
+        [0, yoffset*2]);
+    }
 
     // Save frame history
     this._prevFrame = nextFrame;

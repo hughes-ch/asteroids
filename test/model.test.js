@@ -188,3 +188,33 @@ test('Test that non-owned collisions are not counted', () => {
 
   expect(keeper.score).toEqual(0);
 });
+
+test('Test that the game starts with three lives', () => {
+  expect(new model.ScoreKeeper().lives).toEqual(3);
+});
+
+test('Test a new ship is added every 10000 points', () => {
+  let keeper = new model.ScoreKeeper();
+  keeper.lives = 3;
+  keeper.score = (model.ScoreKeeper.numPointsForNewLife*2) - 1;
+
+  let missile = new go.Missile([0, 0], [0, 0], 0);
+  let alien = new go.Alien([0, 0]);
+  keeper.collectScore(missile, alien);
+
+  expect(keeper.lives).toEqual(4);
+});
+
+test('Test objects are no longer added after 0 lives', () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  gameModel._score.lives = 0;
+
+  let control = new intf.Control();
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+  
+  let frame = Array.from(outputQueue.dequeue());
+  expect(frame.length).toEqual(0);
+}); 
