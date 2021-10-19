@@ -99,8 +99,10 @@ export class BaseStateModel {
    */
   static get bigText() { return 0.15; }
   static get medText() { return 0.10; }
-  static get smallText() { return 0.04; }
+  static get smallText() { return 0.06; }
+  static get fixedReadable() { return 18; }
   static get timeInGameOver() { return 5; }
+  static get textPadding() { return 10; }
 
   /**
    * Constructor
@@ -266,7 +268,7 @@ export class WelcomeStateModel extends BaseStateModel {
     gameOverText.justify = 'center';
     gameOverText.position = [
       control.windowSize[0]/2,
-      control.windowSize[1]/2 - gameOverText.sizePx,
+      control.windowSize[1]/2,
     ];
 
     let scoreText = new intf.TextObject('PRESS ANY BUTTON TO CONTINUE');
@@ -274,11 +276,61 @@ export class WelcomeStateModel extends BaseStateModel {
     scoreText.justify = 'center';
     scoreText.position = [
       control.windowSize[0]/2,
-      control.windowSize[1]/2,
+      control.windowSize[1]/2 + gameOverText.sizePx,
     ];
-    
+
+    let instructionsHead = new intf.TextObject('HOW TO PLAY');
+    instructionsHead.sizePx = BaseStateModel.smallText * control.windowSize[0];
+    instructionsHead.justify = 'left';
+    instructionsHead.position = [
+      0,
+      instructionsHead.sizePx,
+    ];
+
+    let mobileText = [
+      new intf.TextObject('ON MOBILE:                   '),
+      new intf.TextObject('  tilt phone: turn left/right'),
+      new intf.TextObject('    tap left: thrust         '),
+      new intf.TextObject('   tap right: shoot          '),
+    ];
+
+    for (let ii = 0; ii < mobileText.length; ii++) {
+      let text = mobileText[ii];
+      text.sizePx = BaseStateModel.fixedReadable;
+      text.justify = 'left';
+      text.position = [
+        0,
+        instructionsHead.position[1] + (text.sizePx * (ii+2))
+      ];
+    }
+      
+    let desktopText = [
+      new intf.TextObject('WITH KEYBOARD:     '),
+      new intf.TextObject('      w: thrust    '),
+      new intf.TextObject('      a: turn left '),
+      new intf.TextObject('      d: turn right'),
+      new intf.TextObject('  space: shoot     '),
+    ];
+
+    for (let ii = 0; ii < desktopText.length; ii++) {
+      let text = desktopText[ii];
+      text.sizePx = BaseStateModel.fixedReadable;
+      text.justify = 'left';
+      text.position = [
+        0,
+        mobileText[mobileText.length-1].position[1] + (text.sizePx * (ii+2))
+      ];
+    }
+
     frame.addText(gameOverText);
     frame.addText(scoreText);
+    frame.addText(instructionsHead);
+    for (let text of mobileText) {
+      frame.addText(text);
+    }
+    for (let text of desktopText) {
+      frame.addText(text);
+    }
   }
 
   /**

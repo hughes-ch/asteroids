@@ -242,7 +242,6 @@ test('Test the model starts with welcome screen', () => {
   gameModel.updateFrame();
 
   let frame = output.dequeue();
-  expect(frame.textObjects.length).toEqual(2);
   expect(frame.textObjects.find(
     (element) => element.text === 'ASTEROIDS'))
     .toBeTruthy();
