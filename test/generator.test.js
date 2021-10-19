@@ -31,6 +31,20 @@ let rotateVect = (vector, rotation) => {
 };
 
 /**
+ * Utility function to create Model in GameState
+ *
+ * @return {Model}
+ */
+let createModelInGameState = () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  gameModel._currentState = 1;
+  
+  return gameModel;
+};
+
+/**
  * Extended matchers
  *
  */
@@ -65,9 +79,9 @@ expect.extend({
  * Unit tests
  */
 test('Test the GameStateModel initializes correctly', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let control = new intf.Control();
   control.windowSize = [100, 100];
@@ -85,9 +99,9 @@ test('Test the GameStateModel initializes correctly', () => {
 });
 
 test('Test thruster model removed after thrusting', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let control = new intf.Control();
   control.shoot = true;
@@ -116,9 +130,9 @@ test('Test thruster model removed after thrusting', () => {
 });
 
 test('Test new missile created on "shoot"', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let control = new intf.Control();
   control.shoot = true;
@@ -142,7 +156,8 @@ test('Test new missiles move where ship is pointed', () => {
   control.windowSize = [3440, 1440];
   control.shoot = true;
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(gameObjects, 0);
   generator.makeNewObjectsFor(control);
   
@@ -164,20 +179,21 @@ test('Test new missiles move where ship is pointed', () => {
 
 test('Test generator timer', () => {
   let mockCreate = jest.spyOn(
-    gen.ObjectGenerator.prototype,
+    gen.GameplayGenerator.prototype,
     '_createNewAsteroids')
       .mockImplementation(() => undefined);
 
   let control = new intf.Control();
   control.windowSize = [100, 100];
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.makeNewObjectsFor(control);
-  generator.updateState([], gen.ObjectGenerator.timeToGenerateAsteroid / 2);
+  generator.updateState([], gen.GameplayGenerator.timeToGenerateAsteroid / 2);
   generator.makeNewObjectsFor(control);
   expect(mockCreate).not.toHaveBeenCalled()
 
-  generator.updateState([], gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+  generator.updateState([], gen.GameplayGenerator.timeToGenerateAsteroid * 2);
   generator.makeNewObjectsFor(control);
   expect(mockCreate).toHaveBeenCalledTimes(1);
   
@@ -193,7 +209,8 @@ test('Test generator only makes asteroids/aliens when none left', () => {
   objList.push(new go.Asteroid([0, 0], go.Asteroid.largeScale));
 
   let control = new intf.Control();
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
   expect(generator._actions.length).toEqual(0);
@@ -228,12 +245,13 @@ test('Test new asteroid position calculation', () => {
     let control = new intf.Control();
     control.windowSize = screenSize;
     
-    let generator = new gen.ObjectGenerator();
+    let keeper = new intf.ScoreKeeper();
+    let generator = new gen.GameplayGenerator(keeper);
     generator.updateState(objList, 0);
     generator.makeNewObjectsFor(control);
     generator.updateState(
       objList,
-      gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+      gen.GameplayGenerator.timeToGenerateAsteroid * 2);
     
     generator.makeNewObjectsFor(control);
 
@@ -254,7 +272,7 @@ test('Test new asteroid position calculation', () => {
         let minDistance = Math.sqrt(
           (screenSize[0]/2)**2 +
             (screenSize[1]/2)**2) *
-            gen.ObjectGenerator.minSafeDistancePercent;
+            gen.GameplayGenerator.minSafeDistancePercent;
         
         expect(distance).toBeGreaterThanOrEqual(minDistance);
       }
@@ -264,11 +282,12 @@ test('Test new asteroid position calculation', () => {
 
 test('Test number of asteroids generated per level', () => {
   let mockCalculate = jest.spyOn(
-    gen.ObjectGenerator.prototype,
+    gen.GameplayGenerator.prototype,
     '_calculateNewAsteroidPos')
       .mockImplementation(() => [0, 0]);
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
   
@@ -279,7 +298,7 @@ test('Test number of asteroids generated per level', () => {
     generator.makeNewObjectsFor(control);
     generator.updateState(
       objList,
-      gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+      gen.GameplayGenerator.timeToGenerateAsteroid * 2);
     
     generator.makeNewObjectsFor(control);
 
@@ -287,14 +306,15 @@ test('Test number of asteroids generated per level', () => {
           element.type === objModels.ModelType.asteroid;
     
     expect(objList.filter(isAsteroid).length).toEqual(
-      gen.ObjectGenerator.startingAsteroidCount + Math.floor(ii/2));
+      gen.GameplayGenerator.startingAsteroidCount + Math.floor(ii/2));
   }
 
   mockCalculate.mockRestore();
 });
 
 test('Test number of asteroids generated with no ship', () => {
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
   
@@ -305,7 +325,7 @@ test('Test number of asteroids generated with no ship', () => {
   objList = [];
   generator.updateState(
     objList,
-    gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+    gen.GameplayGenerator.timeToGenerateAsteroid * 2);
   
   generator.makeNewObjectsFor(control);
 
@@ -316,7 +336,8 @@ test('Test number of asteroids generated with no ship', () => {
 });
 
 test('Test asteroid calculation when not enough room on screen', () => {
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   let control = new intf.Control();
   let objList = [];
 
@@ -324,7 +345,7 @@ test('Test asteroid calculation when not enough room on screen', () => {
   generator.makeNewObjectsFor(control);
   generator.updateState(
     objList,
-    gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+    gen.GameplayGenerator.timeToGenerateAsteroid * 2);
   
   generator.makeNewObjectsFor(control);
 
@@ -338,7 +359,8 @@ test('Verify the generator creates a new ship after one is destroyed', () => {
   // Initialize model with spaceship
   let control = new intf.Control();
   let gameObjects = [ new go.Spaceship([100, 100], 0) ];
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(gameObjects, 0);
   generator.makeNewObjectsFor(control);
 
@@ -352,7 +374,7 @@ test('Verify the generator creates a new ship after one is destroyed', () => {
   generator.makeNewObjectsFor(control);
   generator.updateState(
     gameObjects,
-    gen.ObjectGenerator.timeBetweenLives * 2);
+    gen.GameplayGenerator.timeBetweenLives * 2);
   
   generator.makeNewObjectsFor(control);
   
@@ -362,7 +384,8 @@ test('Verify the generator creates a new ship after one is destroyed', () => {
 });
 
 test('Test there is no thruster added with no ship', () => {
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator._isGameInitialized = true;
   
   let objList = [];
@@ -386,12 +409,14 @@ test('Test blaster is shot at spaceship', () => {
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
+
   generator.updateState(
     objList,
-    gen.ObjectGenerator.nominalBlasterTime + 0.1);
+    gen.GameplayGenerator.nominalBlasterTime + 0.1);
 
   generator.makeNewObjectsFor(control);
   
@@ -402,7 +427,7 @@ test('Test blaster is shot at spaceship', () => {
     Math.atan2(blaster.movement[1], blaster.movement[0]) * 180/Math.PI) + 90;
   
   expect(Math.abs(travelAngle))
-    .toBeGreaterThanOrEqual(gen.ObjectGenerator.blasterCone/2);
+    .toBeGreaterThanOrEqual(gen.GameplayGenerator.blasterCone/2);
 
   mockRandom.mockReset();
 });
@@ -412,12 +437,13 @@ test('Test initial alien location', () => {
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
   generator.updateState(
     objList,
-    gen.ObjectGenerator.timeToGenerateAsteroid * 2);
+    gen.GameplayGenerator.timeToGenerateAsteroid * 2);
 
   // Create alien on left side of the screen
   let mockRandom = jest.spyOn(Math, 'random')
@@ -447,7 +473,8 @@ test('Test blaster generation with no ship', () => {
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState([], 0);
   generator.makeNewObjectsFor(control);
 
@@ -462,7 +489,8 @@ test('Test blaster generation with no alien', () => {
   control.windowSize = [1000, 1000];
 
   let objList = [];
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState(objList, 0);
   generator.makeNewObjectsFor(control);
 
@@ -475,7 +503,8 @@ test('Test missile generation with no ship', () => {
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
-  let generator = new gen.ObjectGenerator();
+  let keeper = new intf.ScoreKeeper();
+  let generator = new gen.GameplayGenerator(keeper);
   generator.updateState([], 0);
   generator.makeNewObjectsFor(control);
 
@@ -485,3 +514,42 @@ test('Test missile generation with no ship', () => {
   generator._createNewMissile.call(generator, control);
 });
 
+test('Test demo generator creates periodic aliens', () => {
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let objList = [];
+  let generator = new gen.DemoGenerator();
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+  expect(generator._actions.findValue(
+    generator._createAlien, generator._compareFuncs))
+    .toBeGreaterThanOrEqual(0);
+
+  generator.updateState(
+    objList,
+    gen.ObjectGenerator.nominalTimeBetweenAliens*2);
+
+  generator.makeNewObjectsFor(control);
+
+  generator.updateState(
+    objList,
+    gen.ObjectGenerator.nominalTimeBetweenAliens*2);
+  
+  generator.makeNewObjectsFor(control);
+  
+  expect(generator._actions.findValue(
+    generator._createAlien, generator._compareFuncs))
+    .toBeGreaterThanOrEqual(0);
+});
+
+test('Test demo generator creates asteroids', () => {
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let objList = [];
+  let generator = new gen.DemoGenerator();
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+  expect(objList.length).toEqual(gen.DemoGenerator.startingNumAsteroids);
+});

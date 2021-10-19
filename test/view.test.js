@@ -155,47 +155,15 @@ test('Test that extra frames are discarded', () => {
   mockDrawObject.mockRestore();
 });
 
-test('Test the score/lives are rendered as text to the screen', () => {
+test('Test text rendering', () => {
   let queue = new intf.Queue();
   let gameView = new view.View(queue);
   let frame = new intf.Frame();
-  frame.score = 20;
-  frame.lives = 3;
+  let text = new intf.TextObject('Hello world!');
+  frame.addText(text);
   queue.enqueue(frame);
   gameView.renderCanvas();
 
-  expect(mockRenderText).toHaveBeenCalledTimes(2);
-  
-  expect(mockRenderText).toHaveBeenCalledWith(
-    `SCORE: ${frame.score}`,
-    expect.anything(),
-    expect.anything());
-
-  expect(mockRenderText).toHaveBeenCalledWith(
-    `LIVES: ${frame.lives}`,
-    expect.anything(),
-    expect.anything());
+  expect(mockRenderText).toHaveBeenCalledWith(text);
 });
 
-test('Test that GAME OVER is printed to screen when there are 0 lives', () => {
-  let queue = new intf.Queue();
-  let gameView = new view.View(queue);
-  let frame = new intf.Frame();
-  frame.score = 20;
-  frame.lives = 0;
-  frame.windowSize = [100, 100];
-  queue.enqueue(frame);
-  gameView.renderCanvas();
-
-  expect(mockRenderText).toHaveBeenCalledWith(
-    `SCORE: ${frame.score}`,
-    expect.anything(),
-    expect.anything(),
-    true);
-
-  expect(mockRenderText).toHaveBeenCalledWith(
-    `GAME OVER`,
-    expect.anything(),
-    [frame.windowSize[0]/2, frame.windowSize[1]/2],
-    true);
-});

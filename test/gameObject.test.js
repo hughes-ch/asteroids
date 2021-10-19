@@ -31,6 +31,20 @@ let rotateVect = (vector, rotation) => {
 };
 
 /**
+ * Utility function to create Model in GameState
+ *
+ * @return {Model}
+ */
+let createModelInGameState = () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  gameModel._currentState = 1;
+  
+  return gameModel;
+};
+
+/**
  * Tests
  */
 test('Test object decomposition', () => {
@@ -171,9 +185,9 @@ test('Test drag', () => {
 
 test('Test thruster model updated during thrust', () => {
   // Make sure position matches updated spaceship exactly
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let control = new intf.Control();
   control.rotate = intf.Control.rotateFullCw;

@@ -31,14 +31,28 @@ let rotateVect = (vector, rotation) => {
 };
 
 /**
+ * Utility function to create Model in GameState
+ *
+ * @return {Model}
+ */
+let createModelInGameState = () => {
+  let inputQueue = new intf.Queue();
+  let outputQueue = new intf.Queue();
+  let gameModel = new model.Model(inputQueue, outputQueue);
+  gameModel._currentState = 1;
+  
+  return gameModel;
+};
+
+/**
  * Unit tests
  *
  */
 test('Verify correct control object used in updateFrame()', () => {
   let mockUpdateState = jest.spyOn(go.GameObject.prototype, 'updateState');
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   // Make sure game model does not update model without first input
   gameModel.updateFrame();
@@ -67,9 +81,9 @@ test('Verify correct control object used in updateFrame()', () => {
 });
 
 test('Test elapsed time is calculated correctly between frames', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
   let startTime = new Date().getTime();
   
   // Verify last call's 'elapsedTime' parameter is less than test length
@@ -88,9 +102,9 @@ test('Test elapsed time is calculated correctly between frames', () => {
 });
 
 test('Test window resizing', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let control = new intf.Control();
   control.windowSize = [100, 100];
@@ -103,9 +117,9 @@ test('Test window resizing', () => {
 });
 
 test('Test that extra controls are stacked', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
 
   let dummyControl = new intf.Control();
   inputQueue.enqueue(dummyControl);
@@ -149,66 +163,27 @@ test('Test that extra controls are stacked', () => {
 });
 
 test('Test garbage is collected at end of each frame update', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
   let control = new intf.Control()
 
   inputQueue.enqueue(control);
-  
   gameModel.updateFrame();
-  gameModel._currentState._objectList[0].isGarbage = true;
+
+  let objList = gameModel._models[gameModel._currentState]._objectList;
+  let origObjListLen = objList.length;
+  objList[0].isGarbage = true;
   gameModel.updateFrame();
-  expect(gameModel._currentState._objectList.length).toEqual(0);
-});
 
-test('Test the collection of a complex collision', () => {
-  let keeper = new model.ScoreKeeper();
-  let origLives = keeper.lives;
-  
-  let missile = new go.Missile([0, 0], [0, 0], 0);
-  let alien = new go.Alien([0, 0]);
-  keeper.collectScore(missile, alien);
-
-  let spaceship = new go.Spaceship([100, 100], 0);
-  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
-  keeper.collectScore(spaceship, asteroid);
-
-  expect(keeper.lives)
-    .toEqual(origLives - spaceship.score().livesLost);
-  expect(keeper.score)
-    .toEqual(alien.score().scoreIncrease + asteroid.score().scoreIncrease);
-});
-
-test('Test that non-owned collisions are not counted', () => {
-  let keeper = new model.ScoreKeeper();
-  let alien = new go.Alien([0, 0]);
-  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
-  keeper.collectScore(alien, asteroid);
-
-  expect(keeper.score).toEqual(0);
-});
-
-test('Test that the game starts with three lives', () => {
-  expect(new model.ScoreKeeper().lives).toEqual(3);
-});
-
-test('Test a new ship is added every 10000 points', () => {
-  let keeper = new model.ScoreKeeper();
-  keeper.lives = 3;
-  keeper.score = (model.ScoreKeeper.numPointsForNewLife*2) - 1;
-
-  let missile = new go.Missile([0, 0], [0, 0], 0);
-  let alien = new go.Alien([0, 0]);
-  keeper.collectScore(missile, alien);
-
-  expect(keeper.lives).toEqual(4);
+  objList = gameModel._models[gameModel._currentState]._objectList;
+  expect(objList.length).toEqual(origObjListLen - 1);
 });
 
 test('Test objects are no longer added after 0 lives', () => {
-  let inputQueue = new intf.Queue();
-  let outputQueue = new intf.Queue();
-  let gameModel = new model.Model(inputQueue, outputQueue);
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
   gameModel._score.lives = 0;
 
   let control = new intf.Control();
@@ -217,4 +192,155 @@ test('Test objects are no longer added after 0 lives', () => {
   
   let frame = Array.from(outputQueue.dequeue());
   expect(frame.length).toEqual(0);
-}); 
+});
+
+test('Test score overlay added when lives > 0', () => {
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
+
+  let control = new intf.Control();
+  control.windowSize = [0, 0];
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+  
+  let frame = outputQueue.dequeue();
+  expect(frame.textObjects.length).toEqual(2);
+  expect(frame.textObjects.find((element) => element.text === 'SCORE: 0'))
+    .toBeTruthy();
+  expect(frame.textObjects.find(
+    (element) => element.text === `LIVES: ${intf.ScoreKeeper.startingLives}`))
+    .toBeTruthy();
+});
+
+test('Test GAME OVER added when lives === 0', () => {
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
+  gameModel._score.lives = 0;
+
+  let control = new intf.Control();
+  control.windowSize = [0, 0];
+  inputQueue.enqueue(control);
+  gameModel.updateFrame();
+  
+  let frame = outputQueue.dequeue();
+  expect(frame.textObjects.length).toEqual(2);
+  expect(frame.textObjects.find((element) => element.text === 'SCORE: 0'))
+    .toBeTruthy();
+  expect(frame.textObjects.find((element) => element.text === 'GAME OVER'))
+    .toBeTruthy();
+});
+
+test('Test the model starts with welcome screen', () => {
+  let input = new intf.Queue();
+  let output = new intf.Queue();
+  let gameModel = new model.Model(input, output);
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  input.enqueue(control);
+  gameModel.updateFrame();
+
+  let frame = output.dequeue();
+  expect(frame.textObjects.length).toEqual(2);
+  expect(frame.textObjects.find(
+    (element) => element.text === 'ASTEROIDS'))
+    .toBeTruthy();
+  expect(frame.textObjects.find(
+    (element) => element.text === 'PRESS ANY BUTTON TO CONTINUE'))
+    .toBeTruthy();
+});
+
+test('Test the state is switched when frame is falsy', () => {
+  let mockState = jest.spyOn(model.BaseStateModel.prototype, 'updateFrame')
+      .mockImplementation((control) => undefined);
+  
+  let input = new intf.Queue();
+  let output = new intf.Queue();
+  let gameModel = new model.Model(input, output);
+  gameModel._score.lives = 10;
+  gameModel._score.score = 1000;
+  
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  input.enqueue(control);
+
+  let currentState = gameModel._currentState;
+  gameModel.updateFrame();
+  expect(gameModel._currentState).toEqual(currentState + 1);
+
+  gameModel.updateFrame();
+  expect(gameModel._currentState).toEqual(0);
+  expect(gameModel._score.lives).toEqual(intf.ScoreKeeper.startingLives);
+
+  mockState.mockRestore();
+});
+
+test('Test model is reset between states', () => {
+  let mockDone = jest.spyOn(model.WelcomeStateModel.prototype, '_isModelDone')
+      .mockImplementation((control) => true);
+
+  let input = new intf.Queue();
+  let output = new intf.Queue();
+  let gameModel = new model.Model(input, output);
+  gameModel._models[gameModel._currentState+1]._objectList.push(
+    new go.Alien([0, 0]));
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  input.enqueue(control);
+  
+  gameModel.updateFrame();
+  expect(gameModel._models[gameModel._currentState]._objectList.length)
+    .toEqual(0);
+
+  mockDone.mockRestore();
+});
+
+test('Test generator is reset between states', () => {
+  let mockState = jest.spyOn(model.BaseStateModel.prototype, 'updateFrame')
+      .mockImplementation((control) => undefined);
+
+  let input = new intf.Queue();
+  let output = new intf.Queue();
+  let gameModel = new model.Model(input, output);
+  gameModel._models[gameModel._currentState+1]._generator._level = 4;
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  input.enqueue(control);
+  
+  gameModel.updateFrame();
+  expect(gameModel._models[gameModel._currentState]._generator._level)
+    .toEqual(1);
+
+  mockState.mockRestore();
+});
+
+test('Test welcome screen is done when control toggled', () => {
+  let gameModel = new model.WelcomeStateModel();
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  expect(gameModel.updateFrame(control)).toBeTruthy();
+
+  control.thrust = true;
+  expect(gameModel.updateFrame(control)).toBeFalsy();
+});
+
+test('Test game model is done when lives are exhausted', () => {
+  let mockTime = jest.spyOn(
+    model.BaseStateModel.prototype,
+    '_calculateElapsedTime').
+      mockImplementation(() => model.BaseStateModel.timeInGameOver*2);
+
+  let score = new intf.ScoreKeeper();
+  let gameModel = new model.GameStateModel(score);
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  expect(gameModel.updateFrame(control)).toBeTruthy();
+
+  score.lives = 0;
+  expect(gameModel.updateFrame(control)).toBeFalsy();
+});

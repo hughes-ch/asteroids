@@ -70,3 +70,47 @@ test('Test stacking scores', () => {
   expect(stacked.livesLost)
     .toEqual(score1.livesLost + score3.livesLost);
 });
+
+test('Test the collection of a complex collision', () => {
+  let keeper = new intf.ScoreKeeper();
+  let origLives = keeper.lives;
+  
+  let missile = new go.Missile([0, 0], [0, 0], 0);
+  let alien = new go.Alien([0, 0]);
+  keeper.collectScore(missile, alien);
+
+  let spaceship = new go.Spaceship([100, 100], 0);
+  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
+  keeper.collectScore(spaceship, asteroid);
+
+  expect(keeper.lives)
+    .toEqual(origLives - spaceship.score().livesLost);
+  expect(keeper.score)
+    .toEqual(alien.score().scoreIncrease + asteroid.score().scoreIncrease);
+});
+
+test('Test that non-owned collisions are not counted', () => {
+  let keeper = new intf.ScoreKeeper();
+  let alien = new go.Alien([0, 0]);
+  let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
+  keeper.collectScore(alien, asteroid);
+
+  expect(keeper.score).toEqual(0);
+});
+
+test('Test that the game starts with three lives', () => {
+  expect(new intf.ScoreKeeper().lives).toEqual(3);
+});
+
+test('Test a new ship is added every 10000 points', () => {
+  let keeper = new intf.ScoreKeeper();
+  keeper.lives = 3;
+  keeper.score = (intf.ScoreKeeper.numPointsForNewLife*2) - 1;
+
+  let missile = new go.Missile([0, 0], [0, 0], 0);
+  let alien = new go.Alien([0, 0]);
+  keeper.collectScore(missile, alien);
+
+  expect(keeper.lives).toEqual(4);
+});
+

@@ -12,16 +12,8 @@ import * as objModels from './objModels.js'
 import Deque from 'collections/deque'
 
 /**
- * Real-time object generator
+ * Creates any GameObject on screen. Base class for specific generators.
  *
- * In the standard game of asteroids, four asteroids would be generated in the
- * first level. Once all asteroids were destroyed, a new set would be created.
- *
- * Alien spaceships would also shoot at the player - about one spaceship per
- * level.
- *
- * As the player progressed, more alien spaceships and asteroids would be
- * generated per level. In both cases, one more would be added per level.
  */
 export class ObjectGenerator {
 
@@ -29,13 +21,7 @@ export class ObjectGenerator {
    * Static "constants"
    *
    */
-  static get blasterCone() { return 45 /* deg */; }
-  static get minSafeDistancePercent() { return 0.4; }
-  static get startingAsteroidCount() { return 4; }
   static get nominalTimeBetweenAliens() { return 10; }
-  static get nominalBlasterTime() { return 1; }
-  static get timeBetweenLives() { return 3; }
-  static get timeToGenerateAsteroid() { return 1.0; }
 
   /**
    * Constructor
@@ -44,9 +30,17 @@ export class ObjectGenerator {
    */
   constructor() {
     this._actions = new Deque();
-    this._level = 1;
     this._gameObjects = [];
-    this._isGameInitialized = false;
+  }
+
+  /**
+   * Resets all internal state
+   *
+   * @return {ObjectGenerator}
+   */
+  resetGenerator() {
+    this._actions = new Deque();
+    this._gameObjects = [];
   }
 
   /** 
@@ -68,92 +62,9 @@ export class ObjectGenerator {
    * @return {undefined}
    */
   makeNewObjectsFor(control) {
-    // Make sure spaceship is always in model
-    let spaceshipTimer = this._isGameInitialized ?
-        ObjectGenerator.timeBetweenLives : -1;
 
-    const compareFuncs = (elem1, elem2) => elem1 === elem2.func;
-
-    if (this._findShip() === undefined &&
-        this._actions.findValue(this._createNewShip, compareFuncs) < 0) {
-      
-      this._actions.unshift({
-        func: this._createNewShip,
-        timer: spaceshipTimer,
-      });
-    }
-
-    this._isGameInitialized = true;
-
-    // Create asteroids if there's an empty list
-    if (!this._gameObjects.find((element) => element.type === objModels.ModelType.asteroid) &&
-        !this._gameObjects.find((element) => element.type === objModels.ModelType.alien) &&
-        this._actions.findValue(this._createNewAsteroids, compareFuncs) < 0) {
-      
-      this._actions.unshift({
-        func: this._createNewAsteroids,
-        timer: ObjectGenerator.timeToGenerateAsteroid,
-      });
-
-      // Create alien spacecraft
-      let firstAlienTime = (ObjectGenerator.nominalTimeBetweenAliens/2) +
-          (Math.random() * ObjectGenerator.nominalTimeBetweenAliens);
-      
-      this._actions.unshift({
-        func: this._createAlien,
-        timer: firstAlienTime,
-      });
-
-      if (Math.random() > 0.5) {
-        this._actions.unshift({
-          func: this._createAlien,
-          timer: firstAlienTime +
-            (ObjectGenerator.nominalTimeBetweenAliens/2) +
-            (Math.random() * ObjectGenerator.nominalTimeBetweenAliens),
-        });
-      }
-    }
-
-    // Add missile shooting from nose of ship
-    if (control.shoot) {
-      this._actions.unshift({
-        func: this._createNewMissile,
-        timer: -1,
-      });
-    }
-
-    // Add/remove thruster
-    if (this._findShip() !== undefined) {
-      if (control.thrust) {
-        if (this._findThrusterIdx() < 0) {
-          this._actions.unshift({
-            func: this._createThruster,
-            timer: -1,
-          });
-        }
-
-      } else {
-        if (this._findThrusterIdx() >= 0) {
-          this._actions.unshift({
-            func: this._removeThruster,
-            timer: -1,
-          });
-        }
-      }
-    }
-
-    // Create blasters from spacecraft
-    let isBlasterCreated = (elem) => compareFuncs(this._createBlaster, elem);
-    let isAlien = (element) => element.type === objModels.ModelType.alien;
-    
-    if (this._actions.filter(isBlasterCreated).length <
-        this._gameObjects.filter(isAlien).length) {
-
-      this._actions.unshift({
-        func: this._createBlaster,
-        timer: ObjectGenerator.nominalBlasterTime + (Math.random() * 2),
-      });
-    }
+    // Delegate to child classes to make actions
+    this._addSpecificActions(control);
 
     // Handle any expired actions
     this._actions = this._actions.sorted((left, right) => {
@@ -163,23 +74,13 @@ export class ObjectGenerator {
     while(this._actions.length > 0) {
       let action = this._actions.peekBack();
       if (action.timer <= 0) {
-        action.func.call(this, control);
+        action.func.call(action.ctx, control);
         this._actions.pop();
 
       } else {
         break;
       }
     }
-  }
-
-  /**
-   * Creates a new spaceship
-   *
-   * @return {undefined}
-   */
-  _createNewShip(control) {
-    this._gameObjects.push(
-      new go.Spaceship(math.divide(control.windowSize, 2), 180));
   }
 
   /**
@@ -192,6 +93,274 @@ export class ObjectGenerator {
     let ypos = Math.random() * control.windowSize[1];
     let xpos = Math.random() > 0.5 ? 0 : control.windowSize[0];
     this._gameObjects.push(new go.Alien([xpos, ypos]));
+  }
+
+  /**
+   * Create debris for colliding objects
+   *
+   * @param {Array}  debris  Debris to add to model
+   * @return {undefined}
+   */
+  createDebrisFor(debris) {
+    debris.forEach((newObj) => this._gameObjects.push(newObj));
+  }
+
+  /**
+   * Utility to match a function
+   *
+   */
+  _compareFuncs(elem1, elem2) {
+    return elem1 === elem2.func;
+  }
+
+  /**
+   * Adds actions specific to this generator.
+   *
+   * Since this is a base implementation, does nothing
+   *
+   * @param {Control}  control  Control for this gameframe
+   * @return {undefined}
+   */
+  _addSpecificActions(control) {
+    return;
+  }
+};
+
+/**
+ * Creates GameObjects in the background of non-gameplay screens
+ *
+ */
+export class DemoGenerator extends ObjectGenerator {
+
+  /**
+   * Static "constants"
+   *
+   */
+  static get startingNumAsteroids() { return 10; }
+
+  /**
+   * Constructor
+   *
+   * @return {ObjectGenerator}
+   */
+  constructor() {
+    super();
+  }
+
+  /**
+   * Adds actions specific to this generator.
+   *
+   * @param {Control}  control  Control for this gameframe
+   * @return {undefined}
+   */
+  _addSpecificActions(control) {
+    // Create asteroids if there's an empty list
+    if (!this._gameObjects.find(
+      (element) => element.type === objModels.ModelType.asteroid)) {
+
+      this._actions.unshift({
+        func: this._createNewAsteroids,
+        timer: -1,
+        ctx: this,
+      });
+    }
+
+    // Create aliens periodically
+    if (this._actions.findValue(this._createAlien, this._compareFuncs) < 0) {
+      let nextAlienTime = (ObjectGenerator.nominalTimeBetweenAliens/2) +
+          (Math.random() * ObjectGenerator.nominalTimeBetweenAliens);
+      
+      this._actions.unshift({
+        func: this._createAlien,
+        timer: nextAlienTime,
+        ctx: this,
+      });
+    }
+  }
+
+  /**
+   * Creates new asteroids
+   *
+   * @param {Control}  control  Control for this gameframe
+   * @return {undefined}
+   */
+  _createNewAsteroids(control) {
+    for (let ii = 0; ii < DemoGenerator.startingNumAsteroids; ii++) {
+      let coordinates = [
+        Math.random() * control.windowSize[0],
+        Math.random() * control.windowSize[1],
+      ];
+
+      let scale = [
+        go.Asteroid.largeScale,
+        go.Asteroid.mediumScale,
+        go.Asteroid.smallScale,
+      ][Math.floor(Math.random() * 3)];
+      
+      this._gameObjects.push(new go.Asteroid(coordinates, scale));
+    }
+  }
+};
+
+/**
+ * Creates any GameObject on screen during gameplay
+ *
+ */
+export class GameplayGenerator extends ObjectGenerator {
+  
+  /**
+   * Static "constants"
+   *
+   */
+  static get minSafeDistancePercent() { return 0.4; }
+  static get nominalBlasterTime() { return 2; }
+  static get startingAsteroidCount() { return 4; }
+  static get timeBetweenLives() { return 3; }
+  static get timeToGenerateAsteroid() { return 1.0; }
+  static get blasterCone() { return 45 /* deg */; }
+  
+  /**
+   * Constructor
+   *
+   * @param  {ScoreKeeper}  scorekeeper  Maintains game score
+   * @return {ObjectGenerator}
+   */
+  constructor(scorekeeper) {
+    super();
+    
+    this._level = 1;
+    this._isGameInitialized = false;
+    this._scorekeeper = scorekeeper;
+  }
+
+  /**
+   * Resets all internal state
+   *
+   * @return {ObjectGenerator}
+   */
+  resetGenerator() {
+    super.resetGenerator();
+    this._level = 1;
+    this._isGameInitialized = false;
+  }
+
+  /**
+   * Adds actions specific to this generator.
+   *
+   * @param {Control}  control  Control for this gameframe
+   * @return {undefined}
+   */
+  _addSpecificActions(control) {
+    // Do not add any more objects if score does not allow
+    if (!this._scorekeeper.allows()) {
+      return; 
+    }
+    
+    // Make sure spaceship is always in model
+    let spaceshipTimer = this._isGameInitialized ?
+        GameplayGenerator.timeBetweenLives : -1;
+
+    if (this._findShip() === undefined &&
+        this._actions.findValue(this._createNewShip, this._compareFuncs) < 0) {
+      
+      this._actions.unshift({
+        func: this._createNewShip,
+        timer: spaceshipTimer,
+        ctx: this,
+      });
+    }
+
+    this._isGameInitialized = true;
+
+    // Create asteroids if there's an empty list
+    if (!this._gameObjects.find((element) => element.type === objModels.ModelType.asteroid) &&
+        !this._gameObjects.find((element) => element.type === objModels.ModelType.alien) &&
+        this._actions.findValue(this._createNewAsteroids, this._compareFuncs) < 0) {
+      
+      this._actions.unshift({
+        func: this._createNewAsteroids,
+        timer: GameplayGenerator.timeToGenerateAsteroid,
+        ctx: this,
+      });
+
+      // Create alien spacecraft
+      let firstAlienTime = (ObjectGenerator.nominalTimeBetweenAliens/2) +
+          (Math.random() * ObjectGenerator.nominalTimeBetweenAliens);
+      
+      this._actions.unshift({
+        func: this._createAlien,
+        timer: firstAlienTime,
+        ctx: this,
+      });
+
+      if (Math.random() > 0.5) {
+        this._actions.unshift({
+          func: this._createAlien,
+          timer: firstAlienTime +
+            (ObjectGenerator.nominalTimeBetweenAliens/2) +
+            (Math.random() * ObjectGenerator.nominalTimeBetweenAliens),
+          ctx: this,
+        });
+      }
+    }
+
+    // Add missile shooting from nose of ship
+    if (control.shoot) {
+      this._actions.unshift({
+        func: this._createNewMissile,
+        timer: -1,
+        ctx: this,
+      });
+    }
+
+    // Add/remove thruster
+    if (this._findShip() !== undefined) {
+      if (control.thrust) {
+        if (this._findThrusterIdx() < 0) {
+          this._actions.unshift({
+            func: this._createThruster,
+            timer: -1,
+            ctx: this,
+          });
+        }
+
+      } else {
+        if (this._findThrusterIdx() >= 0) {
+          this._actions.unshift({
+            func: this._removeThruster,
+            timer: -1,
+            ctx: this,
+          });
+        }
+      }
+    }
+
+    // Create blasters from spacecraft
+    let isBlasterCreated = (elem) => {
+      return this._compareFuncs(this._createBlaster, elem);
+    }
+    
+    let isAlien = (element) => element.type === objModels.ModelType.alien;
+    
+    if (this._actions.filter(isBlasterCreated).length <
+        this._gameObjects.filter(isAlien).length) {
+
+      this._actions.unshift({
+        func: this._createBlaster,
+        timer: GameplayGenerator.nominalBlasterTime + (Math.random() * 2),
+        ctx: this,
+      });
+    }
+  }
+
+  /**
+   * Creates a new spaceship
+   *
+   * @return {undefined}
+   */
+  _createNewShip(control) {
+    this._gameObjects.push(
+      new go.Spaceship(math.divide(control.windowSize, 2), 180));
   }
 
   /**
@@ -219,20 +388,10 @@ export class ObjectGenerator {
 
     let posDiff = math.subtract(pos, playerShip.coordinates);
     let shipAngle = (Math.atan2(posDiff[1], posDiff[0]) * 180/Math.PI) + 90;
-    let blasterOffset = (-ObjectGenerator.blasterCone/2) +
-        (Math.random() * ObjectGenerator.blasterCone);
+    let blasterOffset = (-GameplayGenerator.blasterCone/2) +
+        (Math.random() * GameplayGenerator.blasterCone);
     
     this._gameObjects.push(new go.Blaster(pos, shipAngle + blasterOffset)); 
-  }
-
-  /**
-   * Create debris for colliding objects
-   *
-   * @param {Array}  debris  Debris to add to model
-   * @return {undefined}
-   */
-  createDebrisFor(debris) {
-    debris.forEach((newObj) => this._gameObjects.push(newObj));
   }
 
   /**
@@ -247,7 +406,7 @@ export class ObjectGenerator {
       return;
     }
 
-    let numAsteroids = ObjectGenerator.startingAsteroidCount +
+    let numAsteroids = GameplayGenerator.startingAsteroidCount +
         math.floor(this._level++ / 2);
 
     for (let ii = 0; ii < numAsteroids; ii++) {
@@ -370,7 +529,7 @@ export class ObjectGenerator {
       let maxDistance = Math.sqrt(((screenSize[0]/2)**2) +
                                   ((screenSize[1]/2)**2))
 
-      let minDistance = maxDistance * ObjectGenerator.minSafeDistancePercent;
+      let minDistance = maxDistance * GameplayGenerator.minSafeDistancePercent;
       let yCoordinate = Math.random() * screenSize[1];
       let shipCoordinates = this._findShipCoordinates();
       let distance = (Math.random() * (maxDistance-minDistance)) + minDistance;
@@ -401,3 +560,4 @@ export class ObjectGenerator {
     }
   }
 };
+  
