@@ -125,7 +125,7 @@ test('Test elapsed time is calculated correctly between frames', () => {
   let lastCall = mockUpdateState.mock.calls[
     mockUpdateState.mock.calls.length-1];
 
-  expect(lastCall[1]).toBeCloseTo(0);
+  expect(lastCall[1]).toBeCloseTo(0, 1);
   mockUpdateState.mockRestore();
 });
 
