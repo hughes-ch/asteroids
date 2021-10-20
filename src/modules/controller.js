@@ -95,6 +95,8 @@ export class Controller {
       return;
     }
 
+    let controlStateChanged = false;
+
     switch (eventInfo.key) {
       // Throw on (or turn off) the thruster
       case "w":
@@ -104,6 +106,7 @@ export class Controller {
         } else {
           this._currentControlState.thrust = false;
         }
+        controlStateChanged = true;
         break;
         
       // Rotate clockwise 
@@ -114,6 +117,7 @@ export class Controller {
         } else {
           this._currentControlState.rotate = intf.Control.rotateNone;
         }
+        controlStateChanged = true;
         break;
 
       // Rotate counter-clockwise
@@ -124,6 +128,7 @@ export class Controller {
         } else {
           this._currentControlState.rotate = intf.Control.rotateNone;
         }
+        controlStateChanged = true;
         break;
 
       // Fire missile
@@ -134,20 +139,31 @@ export class Controller {
           this._sendControl(this._currentControlState);
 
           this._currentControlState.shoot = false;
-          break;
-
-        } else {
-          return;
+          controlStateChanged = true;
         }
-
-      default:
-        return;
+        break;
     }
 
-    this._sendControl(this._currentControlState);
+    // Save any alphanumeric character to the character control
+    let isNotSingleCharKey = (key) => {
+      return /[^\w ]/.test(eventInfo.key) ||
+        (eventInfo.key.length > 1 &&
+         (eventInfo.key !== 'Enter' &&
+          eventInfo.key !== 'Backspace'));
+    };
+        
+    if (!isNotSingleCharKey(eventInfo.key) && type === 'down') {
+      this._currentControlState.character = eventInfo.key;
+      this._sendControl(this._currentControlState);
+      this._currentControlState.character = undefined;
+      controlStateChanged = true;
+    }
 
-    // Do not handle event twice
-    eventInfo.preventDefault();
+    // Send control if valid character encountered
+    if (controlStateChanged) {
+      this._sendControl(this._currentControlState);
+      eventInfo.preventDefault();
+    }
   }
 
   /**
@@ -156,8 +172,9 @@ export class Controller {
    * @return {undefined}
    */
   _handleResizeEvent(event) {
+    this._currentControlState.character = undefined;
     this._currentControlState.windowSize = this._getWindowSize();
-    this._eventQueue.enqueue(this._currentControlState);
+    this._sendControl(this._currentControlState);
   }
 
   /**
@@ -172,6 +189,8 @@ export class Controller {
       return;
     }
 
+    this._captureFocus();
+    
     // Reset control state - these will be updated below if touch is active
     let requestedMissile = false;
     this._currentControlState.thrust = false;
@@ -195,7 +214,8 @@ export class Controller {
         }
       }
     }
-    
+
+    this._currentControlState.character = undefined;
     this._sendControl(this._currentControlState);
 
     // Make sure each tap of the right side of screen only shoots once
@@ -233,6 +253,7 @@ export class Controller {
         this._currentControlState.rotate = orientation / Controller.maxTilt;
       }
 
+      this._currentControlState.character = undefined;
       this._sendControl(this._currentControlState);
     };
     
@@ -297,4 +318,17 @@ export class Controller {
       });
     }
   }
+
+  /**
+   * Captures focus on a hidden input to force mobile keyboard
+   *
+   * @return {undefined}
+   */
+  _captureFocus() {
+    let input = document.getElementById('force-keyboard');
+    if (input && input.style.visibility === 'visible') {
+      input.focus();
+      input.click();
+    }
+  };
 };

@@ -84,6 +84,7 @@ export class Frame {
    * @return {Frame}
    */
   constructor() {
+    this.textObjects = [];
     this.windowSize = [0, 0];
     this._objModels = [];
   }
@@ -95,6 +96,15 @@ export class Frame {
    */
   add(obj) {
     this._objModels.push(obj.decompose());
+  }
+
+  /**
+   * Adds a TextObject to the frame
+   *
+   * @param {TextObject} obj
+   */
+  addText(obj) {
+    this.textObjects.push(obj);
   }
 
   /** 
@@ -141,6 +151,7 @@ export class Control {
    *
    */
   constructor() {
+    this.character = undefined;
     this.rotate = 0;
     this.shoot = false;
     this.thrust = false;
@@ -154,6 +165,7 @@ export class Control {
    */
   copy() {
     let copyControl = new Control();
+    copyControl.character = this.character;
     copyControl.rotate = this.rotate;
     copyControl.shoot = this.shoot;
     copyControl.thrust = this.thrust;
@@ -168,6 +180,7 @@ export class Control {
    * @return {undefined}
    */
   stack(nextControl) {
+    this.character = nextControl.character || this.character;
     this.rotate = nextControl.rotate;
     this.shoot = this.shoot || nextControl.shoot;
     this.thrust = this.thrust || nextControl.thrust;
@@ -175,3 +188,119 @@ export class Control {
   }
 };
 
+/**
+ * Details of a single score event
+ *
+ */
+export class Score {
+
+  /**
+   * Constructor
+   *
+   */
+  constructor() {
+    this.livesLost = 0;
+    this.scoreIncrease = 0;
+    this.owned = false;
+  }
+
+  /**
+   * "Stack" scores to handle multiple at once
+   *
+   * Newly stacked scores are returned. Original not modified
+   * 
+   * @param {Score}  nextScore  Next score to account for 
+   * @return {Score}
+   */
+  stack(nextScore) {
+    let stacked = new Score();
+    stacked.livesLost = this.livesLost + nextScore.livesLost;
+    stacked.scoreIncrease = this.scoreIncrease + nextScore.scoreIncrease;
+    stacked.owned = this.owned || nextScore.owned;
+    return stacked;
+  }
+};
+
+/** 
+ * Keeps score
+ *
+ */
+export class ScoreKeeper {
+
+  /**
+   * Static "constants"
+   *
+   */
+  static get startingLives() { return 3; }
+  static get numPointsForNewLife() { return 10000; }
+
+  /**
+   * Constructor
+   *
+   * @return {ScoreKeeper}
+   */
+  constructor() {
+    this.score = 0;
+    this.lives = ScoreKeeper.startingLives;
+  }
+
+  /**
+   * Updates score based on the two objects that collided
+   *
+   * @param {GameObject}  obj1  First object in collision
+   * @param {GameObject}  obj2  Second object in collision
+   * @return {undefined} 
+   */
+  collectScore(obj1, obj2) {
+    let updates = obj1.score().stack(obj2.score());
+    
+    if (updates.owned) {
+      this.score += updates.scoreIncrease;
+      this.lives -= updates.livesLost;
+    }
+
+    if (this.score > ScoreKeeper.numPointsForNewLife &&
+        this.score % ScoreKeeper.numPointsForNewLife < updates.scoreIncrease) {
+      
+      this.lives += 1;
+    }
+  }
+
+  /**
+   * Returns a boolean indicating if game can keep going
+   *
+   * @return {Boolean}
+   */
+  allows() {
+    return this.lives > 0;
+  }
+
+  /**
+   * Resets the score
+   *
+   * @return {undefined}
+   */
+  reset() {
+    this.score = 0;
+    this.lives = ScoreKeeper.startingLives;
+  }
+};
+
+/**
+ * Maintains information about text objects
+ *
+ */
+export class TextObject {
+
+  /**
+   * Constructor
+   *
+   * @return {TextObject}
+   */
+  constructor(text) {
+    this.justify = 'left';
+    this.position = [0, 0];
+    this.sizePx = 16;
+    this.text = text;
+  }
+};

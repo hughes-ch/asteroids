@@ -1,11 +1,24 @@
 html, body {
+    background-color: black;
+    font-family: 'VT323', monospace;
+    height: 100vh;
     margin: 0px;
-    overflow-x: hidden;
+    overflow: hidden;
     padding: 0px;
+    width: 100vh;
 }
 
 canvas {
     height: 100vh;
-    overflow-x: hidden;
+    overflow: hidden;
+    position: absolute;
     width: 100vw;
+    z-index: 2;
+}
+
+#force-keyboard {
+    visibility: hidden;
+    margin: 0px;
+    padding: 0px;
+    z-index: 1;
 }

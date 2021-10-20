@@ -29,11 +29,11 @@ export class Canvas {
    *
    * @return {undefined} 
    */
-  resetCanvas() {
+  resetCanvas(windowSize) {
     let canvas = document.getElementById('canvas');
     let context = canvas.getContext('2d');
     context.fillStyle = '#000';
-    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    context.fillRect(0, 0, windowSize[0], windowSize[1]);
   }
 
   /**
@@ -68,6 +68,25 @@ export class Canvas {
     let canvas = document.getElementById('canvas');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+  }
+
+  /**
+   * Renders text on screen
+   *
+   * @param {TextObject}  text   Text to write
+   * @return {undefined}
+   */
+  renderText(text) {
+    let canvas = document.getElementById('canvas');
+    let context = canvas.getContext('2d');
+
+    context.font = `${text.sizePx}px "VT323"`;
+    context.strokeStyle = '#FFF';
+    context.fillStyle = '#FFF';
+    context.lineWidth = 1.0;
+
+    context.textAlign = text.justify;
+    context.fillText(text.text, text.position[0], text.position[1]);
   }
 };
 
@@ -115,7 +134,7 @@ export class View {
     }
 
     // Draw next frame
-    this._canvas.resetCanvas();
+    this._canvas.resetCanvas(nextFrame.windowSize);
 
     for (let obj of nextFrame) {
       // Translate object model to correct coordinate
@@ -127,6 +146,11 @@ export class View {
       }
       
       this._canvas.drawObject(translatedCoordArray);
+    }
+
+    // Draw text overlays
+    for (let text of nextFrame.textObjects) {
+      this._canvas.renderText(text);
     }
 
     // Save frame history

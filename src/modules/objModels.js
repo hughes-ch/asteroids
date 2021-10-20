@@ -12,6 +12,7 @@ import {Enumify} from 'enumify'
  *
  */ 
 export class ModelType extends Enumify {
+  static alien = new ModelType();
   static asteroid = new ModelType();
   static missile = new ModelType();
   static spaceship = new ModelType();
@@ -23,43 +24,27 @@ export class ModelType extends Enumify {
  * Object model instances
  *
  */
-export const Missile = {
+export const Alien = {
   drag: 0,
-  lifetime: 2 /* sec */,
-  maxSpeed: 500,
+  lifetime: Infinity,
+  maxSpeed: 70,
   maxThrust: 0,
   rotationSpeed: 0,
   vertices: [
-    [0, 4],
-    [0, 0],
-  ],
-};
-
-export const Spaceship = {
-  drag: 0.1,
-  lifetime: Infinity,
-  maxSpeed: 250, /* px/sec */
-  maxThrust: 500,
-  rotationSpeed: 360 /* deg/sec */,
-  vertices: [
-    [0, 12],
-    [-10, -12],
-    [0, -6],
-    [10, -12],
-  ],
-};
-
-export const Thruster = {
-  drag: Spaceship.drag,
-  lifetime: Infinity,
-  maxSpeed: Spaceship.maxSpeed,
-  maxThrust: Spaceship.maxThrust,
-  rotationSpeed: Spaceship.rotationSpeed,
-  vertices: [
-    [0, -9],
-    [3, -11],
-    [0, -21],
-    [-3, -11],
+    [8.5, -9.5],
+    [-3.5, -9.5],
+    [-9.5, -1.5],
+    [-24.5, 9.5],
+    [-9.5, 19.5],
+    [14.5, 19.5],
+    [29.5, 9.5],
+    [14.5, -1.5],
+    [8.5, -9.5],
+    [14.5, -1.5],
+    [-9.5, -1.5],
+    [-24.5, 9.5],
+    [29.5, 9.5],
+    [14.5, -1.5],
   ],
 };
 
@@ -145,5 +130,47 @@ export const Asteroid = [
       [-20.0, -17.0],
     ],
   },
-]
+];
+
+export const Missile = {
+  drag: 0,
+  lifetime: 2 /* sec */,
+  maxSpeed: 500,
+  maxThrust: 0,
+  rotationSpeed: 0,
+  vertices: [
+    [1, 4],
+    [-1, 4],
+    [0, 0],
+  ],
+};
+
+export const Spaceship = {
+  drag: 0.1,
+  lifetime: Infinity,
+  maxSpeed: 250, /* px/sec */
+  maxThrust: 500,
+  rotationSpeed: 360 /* deg/sec */,
+  vertices: [
+    [0, 12],
+    [-10, -12],
+    [0, -6],
+    [10, -12],
+  ],
+};
+
+export const Thruster = {
+  drag: Spaceship.drag,
+  lifetime: Infinity,
+  maxSpeed: Spaceship.maxSpeed,
+  maxThrust: Spaceship.maxThrust,
+  rotationSpeed: Spaceship.rotationSpeed,
+  vertices: [
+    [0, -9],
+    [3, -11],
+    [0, -21],
+    [-3, -11],
+  ],
+};
+
 
