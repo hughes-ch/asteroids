@@ -10,7 +10,7 @@
   <head>
     <meta charset='utf-8' />
     <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+          content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, user-scalable=0, maximum-scale=1" />
 
     <title>{{ settings['page-title'] }}</title>
 
@@ -20,7 +20,10 @@
     <link rel='stylesheet' href='{{ url_for("static", filename="css/styles.css") }}' />
   </head>
   <body>
-    <canvas id='canvas'></canvas>
+    <div>
+      <canvas id='canvas'></canvas>
+      <input id='force-keyboard' type='text'/>
+    </div>
     <script
       src='{{ url_for("static", filename="js/main.js") }}'
       type='module'

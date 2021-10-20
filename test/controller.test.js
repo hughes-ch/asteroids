@@ -17,6 +17,9 @@ beforeEach(() => {
     .mockImplementation(() => undefined);
   jest.spyOn(control.Controller.prototype, '_getWindowSize')
     .mockImplementation(() => [1684, 1305]);
+  jest.spyOn(control.Controller.prototype, '_captureFocus')
+    .mockImplementation(() => undefined);
+
 
   queue = new intf.Queue();
   controller = new control.Controller(queue);
@@ -58,10 +61,13 @@ test('Test thruster', () => {
       };
 
       controller._handleKeyboardEvent(keyState, eventInfo);
-      expect(queue.length).toEqual(1);
+      expect(queue.length).toBeGreaterThanOrEqual(1);
 
       let controlObj = queue.dequeue();
-      expect(controlObj.thrust).toBe(keyState == 'down');
+      expect(controlObj.thrust).toBe(keyState === 'down');
+
+      // Clear queue
+      while(queue.dequeue());
     }
   }
 });
@@ -77,7 +83,7 @@ test('Test CW rotation', () => {
       };
 
       controller._handleKeyboardEvent(keyState, eventInfo);
-      expect(queue.length).toEqual(1);
+      expect(queue.length).toBeGreaterThanOrEqual(1);
 
       let controlObj = queue.dequeue();
       expect(controlObj.thrust).toBe(false);
@@ -85,6 +91,9 @@ test('Test CW rotation', () => {
         keyState == 'down' ?
           intf.Control.rotateFullCw :
           intf.Control.rotateNone);
+
+      // Clear queue
+      while(queue.dequeue());
     }
   }
 });
@@ -100,7 +109,7 @@ test('Test CCW rotation', () => {
       };
 
       controller._handleKeyboardEvent(keyState, eventInfo);
-      expect(queue.length).toEqual(1);
+      expect(queue.length).toBeGreaterThanOrEqual(1);
 
       let controlObj = queue.dequeue();
       expect(controlObj.thrust).toBe(false);
@@ -108,6 +117,9 @@ test('Test CCW rotation', () => {
         keyState == 'down' ?
           intf.Control.rotateFullCcw :
           intf.Control.rotateNone);
+      
+      // Clear queue
+      while(queue.dequeue());
     }
   }
 });
@@ -132,13 +144,16 @@ test('Test shoot control SPC', () => {
 
   // A shoot button press will immediately send two events
   controller._handleKeyboardEvent('down', eventInfo);
-  expect(queue.length).toEqual(2);
+  expect(queue.length).toBeGreaterThanOrEqual(2);
 
   let controlObj = queue.dequeue();
   expect(controlObj.shoot).toBe(true);
 
   controlObj = queue.dequeue();
   expect(controlObj.shoot).toBe(false);
+
+  // Clear queue
+  while(queue.dequeue());
 
   // A shoot release will trigger nothing
   controller._handleKeyboardEvent('up', eventInfo);
@@ -271,4 +286,55 @@ test('Calculate rotation amount in portrait', () => {
   controller._handleOrientationEvent(event2);
   expect(queue.dequeue().rotate).toBeCloseTo(
     event2.gamma/control.Controller.maxTilt);
+});
+
+test('Test alphanumeric characters are saved to character control', () => {
+  let eventInfo = {
+    defaultPrevented: false,
+    key: 'f',
+    preventDefault: () => { undefined }
+  };
+
+  controller._handleKeyboardEvent('down', eventInfo);
+  expect(queue.length).toBeGreaterThanOrEqual(2);
+  expect(queue.dequeue().character).toBe(eventInfo.key);
+  expect(queue.dequeue().character).toBe(undefined);
+});
+
+test('Test character control does not repond to key up', () => {
+  let eventInfo = {
+    defaultPrevented: false,
+    key: 'f',
+    preventDefault: () => { undefined }
+  };
+
+  controller._handleKeyboardEvent('up', eventInfo);
+  expect(queue.length).toEqual(0);
+});
+
+test('Test non-character characters are NOT saved to character control', () => {
+  let eventInfo = {
+    defaultPrevented: false,
+    key: '/',
+    preventDefault: () => { undefined }
+  };
+
+  controller._handleKeyboardEvent('down', eventInfo);
+  expect(queue.length).toEqual(0);
+});
+
+test('Test Enter and Backspace are exceptions to previous test', () => {
+  for (let key of ['Enter', 'Backspace']) {
+    
+    let eventInfo = {
+      defaultPrevented: false,
+      key: key,
+      preventDefault: () => { undefined }
+    };
+
+    controller._handleKeyboardEvent('down', eventInfo);
+    expect(queue.length).toBeGreaterThanOrEqual(2);
+    expect(queue.dequeue().character).toBe(eventInfo.key);
+    expect(queue.dequeue().character).toBe(undefined);
+  }
 });

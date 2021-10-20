@@ -114,3 +114,44 @@ test('Test a new ship is added every 10000 points', () => {
   expect(keeper.lives).toEqual(4);
 });
 
+test('Test stacking controls', () => {
+  let control1 = new intf.Control();
+  control1.character = 'a';
+  control1.rotate = 10;
+  control1.shoot = true;
+  control1.thrust = false;
+  control1.windowSize = [100, 100];
+  
+  let control2 = new intf.Control();
+  control2.character = 'b';
+  control2.rotate = 20;
+  control2.shoot = false;
+  control2.thrust = true;
+  control2.windowSize = [200, 200];
+
+  control1.stack(control2);
+  expect(control1.character).toEqual('b');
+  expect(control1.rotate).toEqual(20);
+  expect(control1.shoot).toBe(true);
+  expect(control1.thrust).toBe(true);
+  expect(control1.windowSize).toEqual([200, 200]);
+});
+
+test('Test copying controls', () => {
+  let control1 = new intf.Control();
+  control1.character = 'a';
+  control1.rotate = 10;
+  control1.shoot = true;
+  control1.thrust = true;
+  control1.windowSize = [100, 100];
+
+  let control2 = control1.copy();
+  for (let property in control2) {
+    expect(control2[property]).toEqual(control1[property]);
+  }
+
+  let control3 = new intf.Control();
+  for (let property in control2) {
+    expect(control3[property]).not.toEqual(control2[property]);
+  }
+});

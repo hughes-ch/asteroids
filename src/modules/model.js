@@ -35,6 +35,7 @@ export class Model {
     this._models = [
       new WelcomeStateModel(),
       new GameStateModel(this._score),
+      new HighScoreScreenModel(this._score),
     ];
   }
 
@@ -100,9 +101,11 @@ export class BaseStateModel {
   static get bigText() { return 0.15; }
   static get medText() { return 0.10; }
   static get smallText() { return 0.06; }
+  static get reallySmallText() { return 0.02; }
   static get fixedReadable() { return 18; }
   static get timeInGameOver() { return 5; }
-  static get textPadding() { return 10; }
+  static get timeAfterEntry() { return 5; }
+  static get highScoreColumnSize() { return 0.75; }
 
   /**
    * Constructor
@@ -280,7 +283,7 @@ export class WelcomeStateModel extends BaseStateModel {
     ];
 
     let instructionsHead = new intf.TextObject('HOW TO PLAY');
-    instructionsHead.sizePx = BaseStateModel.smallText * control.windowSize[0];
+    instructionsHead.sizePx = BaseStateModel.smallText * control.windowSize[1];
     instructionsHead.justify = 'left';
     instructionsHead.position = [
       0,
@@ -296,7 +299,12 @@ export class WelcomeStateModel extends BaseStateModel {
 
     for (let ii = 0; ii < mobileText.length; ii++) {
       let text = mobileText[ii];
-      text.sizePx = BaseStateModel.fixedReadable;
+
+      text.sizePx = BaseStateModel.reallySmallText * control.windowSize[1];
+      if (text.sizePx < BaseStateModel.fixedReadable) {
+        text.sizePx = BaseStateModel.fixedReadable;
+      }
+      
       text.justify = 'left';
       text.position = [
         0,
@@ -314,7 +322,12 @@ export class WelcomeStateModel extends BaseStateModel {
 
     for (let ii = 0; ii < desktopText.length; ii++) {
       let text = desktopText[ii];
-      text.sizePx = BaseStateModel.fixedReadable;
+
+      text.sizePx = BaseStateModel.reallySmallText * control.windowSize[1];
+      if (text.sizePx < BaseStateModel.fixedReadable) {
+        text.sizePx = BaseStateModel.fixedReadable;
+      }
+
       text.justify = 'left';
       text.position = [
         0,
@@ -340,7 +353,7 @@ export class WelcomeStateModel extends BaseStateModel {
    * @return {Boolean}
    */
   _isModelDone(control, elapsedTime) {
-    return control.thrust || control.shoot;
+    return control.thrust || control.shoot || control.character;
   }
 };
 
@@ -446,4 +459,298 @@ export class GameStateModel extends BaseStateModel {
   }
 };
 
+/**
+ * HighScoreScreenModel
+ *
+ * Model of the asteroids gameplay (while user is trying to score)
+ */
+export class HighScoreScreenModel extends BaseStateModel {
 
+  /**
+   * Constructor
+   *
+   * @param {ScoreKeeper} scoreKeeper  Maintains score
+   * @return {GameStateModel}
+   */
+  constructor(scoreKeeper) {
+    let generator = new gen.ObjectGenerator();
+    super(generator);
+
+    this._scoreKeeper = scoreKeeper;
+    this._cursor = '';
+    this._playerEntry = undefined;
+    this._numSecAfterEntry = 0;
+  }
+
+  /**
+   * Resets the game state
+   *
+   * @param {Array}  windowSize  Size of the current canvas
+   * @return {undefined}
+   */
+  resetGameState(windowSize) {
+    this._cursor = '';
+    this._playerEntry = undefined;
+    this._numSecAfterEntry = 0;
+  }
+
+  /**
+   * Adds text overlay to the model. 
+   *
+   * @param {Control}  control  Control for this game frame
+   * @param {Frame}    frame    Frame to update
+   * @return {undefined}
+   */
+  _addOverlay(control, frame) {
+
+    // Add title
+    let title = new intf.TextObject('HIGH SCORES');
+    title.sizePx = BaseStateModel.medText * control.windowSize[0];
+    title.justify = 'center';
+    title.position = [
+      control.windowSize[0]/2,
+      title.sizePx,
+    ];
+    
+    frame.addText(title);
+
+    // Determine bounds of window, accounting for title space
+    const columnSize = BaseStateModel.highScoreColumnSize;
+    const padding = (1-columnSize)/2;
+
+    let bounds = {
+      xmin: control.windowSize[0] * padding,
+      xmax: control.windowSize[0] * (columnSize + padding),
+      ymin: title.sizePx,
+      ymax: control.windowSize[1],
+      font: BaseStateModel.smallText * control.windowSize[0],
+    }
+
+    // Create contents of table
+    this._makeEntryBox(bounds, control, frame);
+    this._createHighScoreTable(bounds, frame);
+  }
+
+  /**
+   * Indicates if this model is ready to transition state
+   *
+   * @param {Control}  control      Control for this game frame
+   * @param {number}   elapsedTime  Number of seconds since last evocation
+   * @return {Boolean}
+   */
+  _isModelDone(control, elapsedTime) {
+    if (this._playerEntry !== undefined) {
+      this._numSecAfterEntry += elapsedTime;
+    }
+    
+    return this._numSecAfterEntry > BaseStateModel.timeAfterEntry;
+  }
+
+  /**
+   * Temporary method to 'fetch' scores from DB
+   *
+   */
+  _fetch() {
+    return [
+      {
+        name: 'Harry',
+        score: 1080,
+      },
+      {
+        name: 'Barry',
+        score: 1058,
+      },
+      {
+        name: 'Susan',
+        score: 50,
+      },
+    ];
+  }
+
+  /**
+   * Retrieves the high scores from the database
+   *
+   * @return {Object}
+   */
+  _retrieveHighScores() {
+    
+    // Retrieve scores from DB
+    let scoresFromDb = this._fetch();
+
+    // Add temporary player entry if one is supplied
+    if (this._playerEntry) {
+      scoresFromDb.push({
+        name: this._playerEntry,
+        score: this._scoreKeeper.score,
+      });
+    }
+
+    // Sort and return
+    scoresFromDb.sort((obj1, obj2) => {
+      return obj2.score - obj1.score
+    });
+    
+    return scoresFromDb;               
+  }
+
+  /**
+   * Creates the high scores table
+   *
+   * @param {Object}  bounds  contains the bounds of the window
+   * @param {Frame}   frame   Frame to populate
+   * @return {undefined} 
+   */
+  _createHighScoreTable(bounds, frame) {
+    
+    // Create headers
+    let nameColumn = new intf.TextObject('NAME');
+    nameColumn.sizePx = bounds.font,
+    nameColumn.justify = 'left';
+    nameColumn.position = [
+      bounds.xmin,
+      bounds.ymin + nameColumn.sizePx,
+    ];
+
+    let scoreColumn = new intf.TextObject('SCORE');
+    scoreColumn.sizePx = bounds.font,
+    scoreColumn.justify = 'right';
+    scoreColumn.position = [
+      bounds.xmax,
+      nameColumn.position[1],
+    ];
+
+    // Retrieve the scores to display
+    let scores = this._retrieveHighScores();
+
+    let scoreTableText = [];
+    for (let ii = 0; ii < scores.length; ii++) {
+      
+      // First, check that the next row won't go out of bounds
+      let nextYPos = nameColumn.position[1] + (bounds.font * (ii+1));
+      if (nextYPos > bounds.ymax) {
+        break;
+      }
+
+      // Create table rows
+      let numberText = new intf.TextObject(`${ii+1}.`);
+      numberText.sizePx = bounds.font,
+      numberText.justify = 'right';
+      numberText.position = [
+        bounds.xmin,
+        nextYPos,
+      ];
+
+      let nameText = new intf.TextObject(scores[ii].name);
+      nameText.sizePx = bounds.font,
+      nameText.justify = 'left';
+      nameText.position = [
+        nameColumn.position[0],
+        numberText.position[1],
+      ];
+
+      let scoreText = new intf.TextObject(scores[ii].score);
+      scoreText.sizePx = bounds.font,
+      scoreText.justify = 'right';
+      scoreText.position = [
+        scoreColumn.position[0],
+        numberText.position[1],
+      ];
+      
+      scoreTableText.push(numberText);
+      scoreTableText.push(nameText);
+      scoreTableText.push(scoreText);
+    }
+
+    frame.addText(nameColumn);
+    frame.addText(scoreColumn);
+
+    for (let text of scoreTableText) {
+      frame.addText(text);
+    }
+  }
+
+  /**
+   * Show mobile keyboard
+   *
+   * @param {TextObject}  nameBoxLabel  Information about user entry
+   * @return {undefined}
+   */
+  _showMobileKeyboard(nameBoxLabel) {
+    // Make the #force-keyboard input visible. Move to be close to the
+    // input on the canvas. By focusing on the input, the mobile keyboard
+    // will be displayed to the user.
+    let input = document.getElementById('force-keyboard');
+    input.style.visibility = 'visible';
+    input.style.position = 'absolute';
+    input.style.left = `${nameBoxLabel.position[0]}px`;
+    input.style.bottom = `${nameBoxLabel.sizePx}px`;
+
+    // Note that the controller does the actual focus
+  }
+
+  /**
+   * Hide mobile keyboard
+   *
+   * @return {undefined}
+   */
+  _hideMobileKeyboard() {
+    // Make the #force-keyboard input invisible. Subsequent clicks will
+    // not focus
+    document.getElementById('force-keyboard').style.visibility = 'hidden';
+  }
+
+  /**
+   * Makes (and populates) an entry box for player to put in their score
+   *
+   * @param {Object}   bounds   Bounds of window
+   * @param {Control}  control  Control for game frame
+   * @param {Frame}    frame    GameFrame to populate
+   * @return {undefined}
+   */
+  _makeEntryBox(bounds, control, frame) {
+
+    // Do not make the entry box if player has already entered score
+    if (this._playerEntry !== undefined) {
+      this._hideMobileKeyboard();
+      return;
+    }
+
+    // Take characters and add it to the player's name
+    if (control.character) {
+      if (control.character === 'Backspace') {
+        this._cursor = this._cursor.substring(
+          0,
+          this._cursor.length-1);
+        
+      } else if (control.character === 'Enter') {
+        this._playerEntry = this._cursor;
+        this._cursor = '';
+
+      } else {
+        this._cursor += control.character;
+      }
+    }
+
+    // Create the text box
+    let nameBoxLabel = new intf.TextObject(`YOUR NAME: ${this._cursor}_`);
+    nameBoxLabel.sizePx = bounds.font,
+    nameBoxLabel.justify = 'left';
+    nameBoxLabel.position = [
+      bounds.xmin,
+      bounds.ymax - nameBoxLabel.sizePx,
+    ];
+
+    this._showMobileKeyboard(nameBoxLabel);
+
+    let yourScoreLabel = new intf.TextObject(this._scoreKeeper.score)
+    yourScoreLabel.sizePx = bounds.font,
+    yourScoreLabel.justify = 'right';
+    yourScoreLabel.position = [bounds.xmax, nameBoxLabel.position[1]];
+
+    frame.addText(nameBoxLabel);
+    frame.addText(yourScoreLabel);
+
+    // Set ymax bound to prevent table from overlapping
+    bounds.ymax = nameBoxLabel.position[1] - nameBoxLabel.sizePx;
+  }
+};

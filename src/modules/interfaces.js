@@ -151,6 +151,7 @@ export class Control {
    *
    */
   constructor() {
+    this.character = undefined;
     this.rotate = 0;
     this.shoot = false;
     this.thrust = false;
@@ -164,6 +165,7 @@ export class Control {
    */
   copy() {
     let copyControl = new Control();
+    copyControl.character = this.character;
     copyControl.rotate = this.rotate;
     copyControl.shoot = this.shoot;
     copyControl.thrust = this.thrust;
@@ -178,6 +180,7 @@ export class Control {
    * @return {undefined}
    */
   stack(nextControl) {
+    this.character = nextControl.character || this.character;
     this.rotate = nextControl.rotate;
     this.shoot = this.shoot || nextControl.shoot;
     this.thrust = this.thrust || nextControl.thrust;

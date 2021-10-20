@@ -29,11 +29,11 @@ export class Canvas {
    *
    * @return {undefined} 
    */
-  resetCanvas() {
+  resetCanvas(windowSize) {
     let canvas = document.getElementById('canvas');
     let context = canvas.getContext('2d');
     context.fillStyle = '#000';
-    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    context.fillRect(0, 0, windowSize[0], windowSize[1]);
   }
 
   /**
@@ -134,7 +134,7 @@ export class View {
     }
 
     // Draw next frame
-    this._canvas.resetCanvas();
+    this._canvas.resetCanvas(nextFrame.windowSize);
 
     for (let obj of nextFrame) {
       // Translate object model to correct coordinate

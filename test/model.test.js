@@ -14,6 +14,34 @@ import * as model from '../src/modules/model.js'
 import * as objModels from '../src/modules/objModels.js'
 
 /**
+ * Setups and teardowns
+ *
+ */
+beforeEach(() => {
+  jest.spyOn(model.HighScoreScreenModel.prototype, '_fetch')
+    .mockImplementation(() => {
+      return [
+        { name: 'Harry', score: 1080, },
+        { name: 'Barry', score: 1058, },
+        { name: 'Susan', score: 50,   }
+      ];
+    });
+
+  jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_showMobileKeyboard')
+    .mockImplementation(() => undefined);
+  jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_hideMobileKeyboard')
+    .mockImplementation(() => undefined);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
  * Utility function to calculate rotations
  *
  * @param {Array}  vector   Vector to rotate
@@ -269,6 +297,7 @@ test('Test the state is switched when frame is falsy', () => {
   expect(gameModel._currentState).toEqual(currentState + 1);
 
   gameModel.updateFrame();
+  gameModel.updateFrame();
   expect(gameModel._currentState).toEqual(0);
   expect(gameModel._score.lives).toEqual(intf.ScoreKeeper.startingLives);
 
@@ -343,3 +372,201 @@ test('Test game model is done when lives are exhausted', () => {
   score.lives = 0;
   expect(gameModel.updateFrame(control)).toBeFalsy();
 });
+
+test('Test HighScoreScreenModel reset', () => {
+  let mockDoneHighScore = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_isModelDone').mockImplementation((control) => true);
+  let mockDoneGameState = jest.spyOn(
+    model.GameStateModel.prototype,
+    '_isModelDone').mockImplementation((control) => true);
+
+  let gameModel = createModelInGameState();
+  let inputQueue = gameModel._inputQueue;
+  let outputQueue = gameModel._outputQueue;
+  gameModel._models[gameModel._currentState+1]._playerEntry = 'name';
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  inputQueue.enqueue(control);
+  
+  gameModel.updateFrame();
+  expect(gameModel._models[gameModel._currentState]._playerEntry)
+    .toBe(undefined);
+
+  mockDoneHighScore.mockRestore();
+  mockDoneGameState.mockRestore();
+});
+
+test('Test contents of HighScoreScreenModel are present', () => {
+  let expectedRows = [
+    { name: 'Harry', score: 1080, },
+    { name: 'Barry', score: 1058, },
+    { name: 'Susan', score: 50,   }
+  ];
+
+  let mockRetrieve = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_retrieveHighScores').mockImplementation((control) => expectedRows);
+
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  // verify title is there
+  let frame = gameModel.updateFrame(control);
+  let isTitlePresent = (element) => element.text === 'HIGH SCORES';
+  expect(frame.textObjects.find(isTitlePresent)).toBeTruthy();
+  
+  // make sure num rows matches expected
+  let filterRows = (element) => /\d\./.test(element.text) 
+  expect(frame.textObjects.filter(filterRows).length)
+    .toEqual(expectedRows.length);
+  
+  // Make sure entry is there
+  let isEntryPresent = (element) => /YOUR NAME/.test(element.text);
+  expect(frame.textObjects.find(isEntryPresent)).toBeTruthy();
+
+  mockRetrieve.mockReset();
+});
+
+test('Test contents of HighScoreScreenModel are centered', () => {
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let padding = ((1-model.BaseStateModel.highScoreColumnSize)/2);
+  let minBound = padding * control.windowSize[0];
+  let maxBound = (model.BaseStateModel.highScoreColumnSize + padding) *
+      control.windowSize[0];
+
+  let frame = gameModel.updateFrame(control);
+  for (let text of frame.textObjects) {
+    expect(text.position[0]).toBeGreaterThanOrEqual(minBound);
+    expect(text.position[0]).toBeLessThanOrEqual(maxBound);
+  }
+});
+
+test('Test rows are cut off early if there are too many', () => {
+  let expectedRows = [
+    { name: 'Harry', score: 1080, },
+    { name: 'Barry', score: 1058, },
+    { name: 'Susan', score: 50,   }
+  ];
+  for (let ii = 0; ii < 10; ii++) {
+    expectedRows = expectedRows.concat(expectedRows);
+  }
+
+  let mockRetrieve = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_retrieveHighScores').mockImplementation((control) => expectedRows);
+
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  let control = new intf.Control();
+  control.windowSize = [100, 100];
+
+  let frame = gameModel.updateFrame(control);
+  let filterRows = (element) => /\d\./.test(element.text) 
+  expect(frame.textObjects.filter(filterRows).length)
+    .toBeLessThan(expectedRows.length);
+  
+  mockRetrieve.mockReset();
+});
+
+test('Test HighScoreScreenModel done after entry made', () => {
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  let control = new intf.Control();
+  control.windowSize = [100, 100];
+
+  gameModel.updateFrame(control);
+  expect(gameModel._isModelDone(control, 0)).toBe(false);
+
+  gameModel._playerEntry = 'name';
+  gameModel.updateFrame(control);
+  expect(gameModel._isModelDone(
+    control,
+    model.BaseStateModel.timeAfterEntry*2))
+    .toBe(true);
+});
+
+test('Test retrieveHighScores returns sorted array, includes new entry', () => {
+  let keeper = new intf.ScoreKeeper();
+  keeper.score = 2000;
+  
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  gameModel._playerEntry = 'me';
+
+  let highScores = gameModel._retrieveHighScores();
+  let lastScore = Infinity;
+  for (let ii = 0; ii < highScores.length; ii++) {
+    expect(highScores[ii].score).toBeLessThanOrEqual(lastScore);
+    lastScore = highScores[ii].score;
+  }
+
+  let isNewEntryPresent = (element) => {
+    return element.name === gameModel._playerEntry &&
+      element.score === keeper.score;
+  }
+  expect(highScores.find(isNewEntryPresent)).toBeTruthy();
+});
+
+test('Test entry box is not displayed if player has made entry', () => {
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  gameModel._playerEntry = 'name'
+  
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let frame = gameModel.updateFrame(control);
+  let isEntryPresent = (element) => /YOUR NAME/.test(element.text);
+  expect(frame.textObjects.find(isEntryPresent)).toBeFalsy();
+});
+
+test('Test entry box updates with character controls', () => {
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  control.character = 'a';
+
+  let frame = gameModel.updateFrame(control);
+  let isEntryPresent = (element) => /YOUR NAME: a_/.test(element.text);
+  expect(frame.textObjects.find(isEntryPresent)).toBeTruthy();
+
+  control.character = 'b';
+  frame = gameModel.updateFrame(control);
+  isEntryPresent = (element) => /YOUR NAME: ab_/.test(element.text);
+  expect(frame.textObjects.find(isEntryPresent)).toBeTruthy();
+
+  control.character = 'Backspace';
+  frame = gameModel.updateFrame(control);
+  isEntryPresent = (element) => /YOUR NAME: a_/.test(element.text);
+  expect(frame.textObjects.find(isEntryPresent)).toBeTruthy();
+
+  control.character = 'Enter';
+  frame = gameModel.updateFrame(control);
+  expect(gameModel._playerEntry).toEqual('a');
+});
+
+test('Test the score is correct in the entry box', () => {
+  let keeper = new intf.ScoreKeeper();
+  keeper.score = 20;
+  
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+
+  let frame = gameModel.updateFrame(control);
+  let findEntry = (element) => /YOUR NAME/.test(element.text);
+  let entryIndex = frame.textObjects.findIndex(findEntry);
+  expect(frame.textObjects[entryIndex+1].text)
+    .toEqual(keeper.score);
+});
+
