@@ -12,20 +12,21 @@ import * as intf from '../src/modules/interfaces.js'
 import * as math from 'mathjs'
 import * as model from '../src/modules/model.js'
 import * as objModels from '../src/modules/objModels.js'
+import fetchMock from 'jest-fetch-mock';
 
 /**
  * Setups and teardowns
  *
  */
 beforeEach(() => {
-  jest.spyOn(model.HighScoreScreenModel.prototype, '_fetch')
-    .mockImplementation(() => {
-      return [
-        { name: 'Harry', score: 1080, },
-        { name: 'Barry', score: 1058, },
-        { name: 'Susan', score: 50,   }
-      ];
-    });
+  jest.spyOn(model.HighScoreScreenModel.prototype, '_fetchScores')
+      .mockImplementation(() => new Promise((resolve, reject) => {
+        resolve([
+          { name: 'Harry', score: 800, },
+          { name: 'Sally', score: 600, },
+          { name: 'Barry', score: 700, },
+        ]);
+      }));
 
   jest.spyOn(
     model.HighScoreScreenModel.prototype,
@@ -405,12 +406,10 @@ test('Test contents of HighScoreScreenModel are present', () => {
     { name: 'Susan', score: 50,   }
   ];
 
-  let mockRetrieve = jest.spyOn(
-    model.HighScoreScreenModel.prototype,
-    '_retrieveHighScores').mockImplementation((control) => expectedRows);
-
   let keeper = new intf.ScoreKeeper();
   let gameModel = new model.HighScoreScreenModel(keeper);
+  gameModel._fetchedScores = expectedRows;
+  
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
@@ -427,8 +426,6 @@ test('Test contents of HighScoreScreenModel are present', () => {
   // Make sure entry is there
   let isEntryPresent = (element) => /YOUR NAME/.test(element.text);
   expect(frame.textObjects.find(isEntryPresent)).toBeTruthy();
-
-  mockRetrieve.mockReset();
 });
 
 test('Test contents of HighScoreScreenModel are centered', () => {
@@ -494,12 +491,14 @@ test('Test HighScoreScreenModel done after entry made', () => {
     .toBe(true);
 });
 
-test('Test retrieveHighScores returns sorted array, includes new entry', () => {
+test('Test retrieveHighScores returns sorted array', () => {
   let keeper = new intf.ScoreKeeper();
-  keeper.score = 2000;
-  
   let gameModel = new model.HighScoreScreenModel(keeper);
-  gameModel._playerEntry = 'me';
+  gameModel._fetchedScores = [
+    { name: 'Harry', score: 800, },
+    { name: 'Sally', score: 600, },
+    { name: 'Barry', score: 700, },
+  ];
 
   let highScores = gameModel._retrieveHighScores();
   let lastScore = Infinity;
@@ -507,12 +506,6 @@ test('Test retrieveHighScores returns sorted array, includes new entry', () => {
     expect(highScores[ii].score).toBeLessThanOrEqual(lastScore);
     lastScore = highScores[ii].score;
   }
-
-  let isNewEntryPresent = (element) => {
-    return element.name === gameModel._playerEntry &&
-      element.score === keeper.score;
-  }
-  expect(highScores.find(isNewEntryPresent)).toBeTruthy();
 });
 
 test('Test entry box is not displayed if player has made entry', () => {
@@ -531,7 +524,8 @@ test('Test entry box is not displayed if player has made entry', () => {
 test('Test entry box updates with character controls', () => {
   let keeper = new intf.ScoreKeeper();
   let gameModel = new model.HighScoreScreenModel(keeper);
-  
+  gameModel._fetchedScores = [];
+
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
   control.character = 'a';
@@ -560,6 +554,8 @@ test('Test the score is correct in the entry box', () => {
   keeper.score = 20;
   
   let gameModel = new model.HighScoreScreenModel(keeper);
+  gameModel._fetchedScores = [];
+  
   let control = new intf.Control();
   control.windowSize = [1000, 1000];
 
@@ -568,5 +564,162 @@ test('Test the score is correct in the entry box', () => {
   let entryIndex = frame.textObjects.findIndex(findEntry);
   expect(frame.textObjects[entryIndex+1].text)
     .toEqual(keeper.score);
+});
+
+test('Test that a loading screen is displayed', () => {
+  let keeper = new intf.ScoreKeeper();
+  let scoreModel = new model.HighScoreScreenModel(keeper);
+  scoreModel._querying = true;
+  
+  let frame = new intf.Frame();
+  let bounds = {
+    xmin: 0,
+    xmax: 100,
+    ymin: 0,
+    ymax: 100
+  };
+  
+  scoreModel._createHighScoreTable(bounds, frame);
+  expect(frame.textObjects.find((element) => element.text === 'LOADING...'))
+    .toBeTruthy();
+  expect(frame.textObjects.find((element) => element.text === 'YOUR NAME_'))
+    .toBeFalsy();
+});
+
+test('Test only one fetch is sent', () => {
+  let mockFetch = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_fetchScores')
+      .mockImplementation(() => new Promise((resolve, reject) => {
+        resolve([]);
+      }));
+  
+  let keeper = new intf.ScoreKeeper();
+  let scoreModel = new model.HighScoreScreenModel(keeper);
+
+  let frame = new intf.Frame();
+  let bounds = {
+    xmin: 0,
+    xmax: 100,
+    ymin: 0,
+    ymax: 100
+  };
+  
+  scoreModel._createHighScoreTable(bounds, frame);
+  scoreModel._createHighScoreTable(bounds, frame);
+  scoreModel._createHighScoreTable(bounds, frame);
+
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+  mockFetch.mockRestore();
+});
+
+test('Test what happens if connection is lost to server', () => {
+  // jest.restoreAllMocks();
+
+  // fetchMock.enableMocks();
+  // fetch.mockReject(500);
+
+  // let keeper = new intf.ScoreKeeper();
+  // let scoreModel = new model.HighScoreScreenModel(keeper);
+
+  // let frame = new intf.Frame();
+  // let bounds = {
+  //   xmin: 0,
+  //   xmax: 100,
+  //   ymin: 0,
+  //   ymax: 100
+  // };
+
+  // return new Promise((resolve, reject) => {
+  //   resolve(scoreModel._createHighScoreTable(bounds, frame));
+
+  // }).then(() => {
+  //   Promise succeeded unexpectedly
+  //   expect(false).toBe(true);
+  //   fetch.resetMocks();
+    
+  // }).catch(() => {
+  //   expect(scoreModel._fetchedScores).toEqual([]);
+  //   fetch.resetMocks();
+  // });
+});
+
+test('Test only one POST', () => {
+  let mockPost = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_postToDb')
+      .mockImplementation(() => new Promise((resolve, reject) => {
+        resolve([]);
+      }));
+  
+  let keeper = new intf.ScoreKeeper();
+  let scoreModel = new model.HighScoreScreenModel(keeper);
+  scoreModel._saveHighScore('name', 100);
+  scoreModel._saveHighScore('name', 100);
+  scoreModel._saveHighScore('name', 100);
+  expect(mockPost).toHaveBeenCalledTimes(1);
+  mockPost.mockRestore();
+});
+
+test('Test POST data and response', async () => {
+  jest.restoreAllMocks();
+  fetchMock.enableMocks();
+
+  let name = 'name';
+  let score = 100;
+  let expectedData = {
+    name: name,
+    score: score,
+  };
+  fetch.mockResponseOnce(JSON.stringify(expectedData));
+  
+  let fakeToken = 'faketoken'
+  let mockToken = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_getUserToken')
+      .mockImplementation(() => fakeToken);
+
+  
+  let keeper = new intf.ScoreKeeper();
+  let scoreModel = new model.HighScoreScreenModel(keeper);
+
+  await scoreModel._saveHighScore('name', 100);
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/${fakeToken}/scores`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expectedData),
+    });
+
+  fetch.resetMocks();
+  const flushPromises = () => new Promise(setImmediate);
+  await flushPromises();
+  expect(scoreModel._fetchedScores).toEqual(expectedData);
+});
+
+test('Test POST when server returns error', async () => {
+  jest.restoreAllMocks();
+  fetchMock.enableMocks();
+  fetch.resetMocks();
+  fetch.mockReject(500);
+
+  let fakeToken = 'faketoken'
+  let mockToken = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_getUserToken')
+      .mockImplementation(() => fakeToken);
+  
+  let keeper = new intf.ScoreKeeper();
+  let scoreModel = new model.HighScoreScreenModel(keeper);
+
+  let name = 'name';
+  let score = 100;
+
+  await scoreModel._saveHighScore('name', 100)
+  const flushPromises = () => new Promise(setImmediate);
+  await flushPromises();
+  expect(scoreModel._fetchedScores).toEqual([])
+  fetch.resetMocks();
 });
 

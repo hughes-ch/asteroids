@@ -11,6 +11,7 @@
 import * as gen from './generator.js'
 import * as go from './gameObject.js'
 import * as intf from './interfaces.js'
+import {rando} from '@nastyox/rando.js';
 
 /**
  * Game Model
@@ -104,8 +105,10 @@ export class BaseStateModel {
   static get reallySmallText() { return 0.02; }
   static get fixedReadable() { return 18; }
   static get timeInGameOver() { return 5; }
-  static get timeAfterEntry() { return 5; }
+  static get timeAfterEntry() { return 3; }
   static get highScoreColumnSize() { return 0.75; }
+  static get cookieName() { return 'apitoken'; }
+  static get tokenLength() { return 43; }
 
   /**
    * Constructor
@@ -480,6 +483,8 @@ export class HighScoreScreenModel extends BaseStateModel {
     this._cursor = '';
     this._playerEntry = undefined;
     this._numSecAfterEntry = 0;
+    this._querying = false;
+    this._fetchedScores = undefined;
   }
 
   /**
@@ -492,6 +497,8 @@ export class HighScoreScreenModel extends BaseStateModel {
     this._cursor = '';
     this._playerEntry = undefined;
     this._numSecAfterEntry = 0;
+    this._querying = false;
+    this._fetchedScores = undefined;
   }
 
   /**
@@ -547,24 +554,33 @@ export class HighScoreScreenModel extends BaseStateModel {
   }
 
   /**
-   * Temporary method to 'fetch' scores from DB
+   * Retrieves the user token from cookies
    *
+   * @return {String}
    */
-  _fetch() {
-    return [
-      {
-        name: 'Harry',
-        score: 1080,
-      },
-      {
-        name: 'Barry',
-        score: 1058,
-      },
-      {
-        name: 'Susan',
-        score: 50,
-      },
-    ];
+  _getUserToken() {
+    let tokenRe = new RegExp(`\\b${BaseStateModel.cookieName}=([\\w-]+)`);
+    let token = document.cookie.match(tokenRe);
+
+    if (!token) {
+      token = '';
+      let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+      for(let ii = 0; ii < length; ii++) token += rando(chars);
+      document.cookie = `${BaseStateModel.cookieName}=${token}`;
+    }
+
+    return token[1];
+  }
+
+  /**
+   * Fetch scores from DB
+   *
+   * @return {Promise}  
+   */
+  async _fetchScores() {
+    let token = this._getUserToken();
+    let scores = await fetch(`/api/${token}/scores`);
+    return scores.json();
   }
 
   /**
@@ -575,14 +591,21 @@ export class HighScoreScreenModel extends BaseStateModel {
   _retrieveHighScores() {
     
     // Retrieve scores from DB
-    let scoresFromDb = this._fetch();
+    let scoresFromDb = this._fetchedScores ?
+        Array.from(this._fetchedScores) : [];
 
-    // Add temporary player entry if one is supplied
-    if (this._playerEntry) {
-      scoresFromDb.push({
-        name: this._playerEntry,
-        score: this._scoreKeeper.score,
-      });
+    if (!this._querying && this._fetchedScores === undefined) {
+      this._querying = true;
+
+      this._fetchScores()
+        .then((value) => {
+          this._fetchedScores = value;
+          this._querying = false;
+        })
+        .catch(() => {
+          this._fetchedScores = [];
+          this._querying = false;
+        });
     }
 
     // Sort and return
@@ -618,6 +641,20 @@ export class HighScoreScreenModel extends BaseStateModel {
       bounds.xmax,
       nameColumn.position[1],
     ];
+
+    // If querying, just show a loading screen and exit
+    if (this._querying) {
+      let loadingText = new intf.TextObject('LOADING...');
+      loadingText.sizePx = bounds.font,
+      loadingText.justify = 'left';
+      loadingText.position = [
+        nameColumn.position[0],
+        nameColumn.position[1] + bounds.font
+      ];
+
+      frame.addText(loadingText);
+      return;
+    }
 
     // Retrieve the scores to display
     let scores = this._retrieveHighScores();
@@ -700,6 +737,54 @@ export class HighScoreScreenModel extends BaseStateModel {
   }
 
   /**
+   * Sends POST request to database
+   *
+   * @param {String}  name   Name of entry
+   * @param {number}  score  To post
+   * @return {undefined}
+   */
+  async _postToDb(name, score) {
+    const data = {
+      'name': name,
+      'score': score,
+    };
+
+    const token = this._getUserToken();
+    let response = await fetch(
+      `/api/${token}/scores`,
+      {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+    return response.json(); 
+  }
+
+  /**
+   * Saves a player high score to the database
+   *
+   * @param {String}  name   Name of entry
+   * @param {number}  score  High score to save
+   * @return {undefined}
+   */
+  _saveHighScore(name, score) {
+    if (!this._querying) {
+      this._querying = true;
+
+      this._postToDb(name, score)
+        .then((value) => {
+          this._fetchedScores = value;
+          this._querying = false;
+        })
+        .catch((error) => {
+          this._fetchedScores = new Array();
+          this._querying = false;
+        });
+    }
+  }
+
+  /**
    * Makes (and populates) an entry box for player to put in their score
    *
    * @param {Object}   bounds   Bounds of window
@@ -710,7 +795,10 @@ export class HighScoreScreenModel extends BaseStateModel {
   _makeEntryBox(bounds, control, frame) {
 
     // Do not make the entry box if player has already entered score
-    if (this._playerEntry !== undefined) {
+    // or currently querying database
+    if (this._playerEntry !== undefined ||
+        this._querying || this._fetchedScores === undefined) {
+      
       this._hideMobileKeyboard();
       return;
     }
@@ -725,6 +813,7 @@ export class HighScoreScreenModel extends BaseStateModel {
       } else if (control.character === 'Enter') {
         this._playerEntry = this._cursor;
         this._cursor = '';
+        this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
 
       } else {
         this._cursor += control.character;
