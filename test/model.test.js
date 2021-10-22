@@ -19,6 +19,8 @@ import fetchMock from 'jest-fetch-mock';
  *
  */
 beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+
   jest.spyOn(model.HighScoreScreenModel.prototype, '_fetchScores')
       .mockImplementation(() => new Promise((resolve, reject) => {
         resolve([

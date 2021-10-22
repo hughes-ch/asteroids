@@ -108,6 +108,15 @@ class TriangulatedObj {
 export class GameObject {
 
   /**
+   * Static method to retrieve device pixel ratio
+   *
+   * @return {number}
+   */
+  static getDevicePixelRatio() {
+    return window.devicePixelRatio / 2;
+  }
+
+  /**
    * Utility function to rotate a vector
    *
    * @param {Array} vector    Vector to rotate
@@ -134,6 +143,7 @@ export class GameObject {
     this.coordinates = objParams.coordinates;
     this.isGarbage = false;
     this.movement = objParams.movement;
+    this.remainingLife = 1 /* percent */;
     this.rotation = objParams.rotation;
     this.type = type;
     this._lastCanvasSize = undefined;
@@ -178,6 +188,8 @@ export class GameObject {
       (vertex) => {
         return math.multiply(vertex, objParams.scale);
       });
+
+    this._scaleOnDevicePixelRatio();
   }
 
   /**
@@ -201,18 +213,28 @@ export class GameObject {
     
     this._lastCanvasSize = control.windowSize;
 
-    // Determine if object is at end-of-life
-    this._model.lifetime -= numSecSinceLastUpdate;
-    if (this._model.lifetime <= 0) {
-      this.isGarbage = true;
-    }
-    
     // Determine coordinates
     this.movement = this._calculateMovement(control, numSecSinceLastUpdate);
 
     this.coordinates = math.add(
       this.coordinates,
       math.multiply(this.movement, numSecSinceLastUpdate));
+
+    // Determine if object is at end-of-life
+    if (this._model.lifetime < Infinity) {
+      let amountOfLifeTaken = Math.abs(
+        math.norm(
+          math.multiply(
+            this.movement,
+            numSecSinceLastUpdate)) /
+          (this._model.lifetime * math.norm(control.windowSize))
+      );
+      
+      this.remainingLife -= amountOfLifeTaken;
+      if (this.remainingLife <= 0) {
+        this.isGarbage = true;
+      }
+    }
 
     // Determine wrapped coordinates
     if (control.windowSize[0] < Infinity && control.windowSize[1] < Infinity) {
@@ -364,6 +386,25 @@ export class GameObject {
     // Objects can wrap by default
     return true;
   }
+
+  /**
+   * Scale based on device pixel ratio
+   *
+   * @return {undefined}
+   */
+  _scaleOnDevicePixelRatio() {
+    let ratio = GameObject.getDevicePixelRatio();
+
+    this._model.maxSpeed /= ratio;
+    this._model.maxThrust /= ratio;
+
+    if (this.movement) {
+      this.movement = math.divide(this.movement, ratio);
+    }
+    
+    this._model.vertices = this._model.vertices.map(
+      (vertex) => math.divide(vertex, ratio));
+  }
 };
 
 /** 
@@ -477,7 +518,7 @@ export class Asteroid extends GameObject {
    */
   static get debrisCount() { return 2; }
   
-  static get largeScale() { return 3; }
+  static get largeScale() { return 2; }
   static get mediumScale() { return 1; }
   static get smallScale() { return 0.5; }
 
@@ -768,8 +809,10 @@ export class Thruster extends UserControlledGameObject {
   constructor(coordinates, movement, rotation) {
     let objParams = new ObjectParameters();
     objParams.coordinates = coordinates;
-    objParams.movement = movement;
     objParams.rotation = rotation;
+    objParams.movement = math.multiply(
+      movement,
+      GameObject.getDevicePixelRatio());
 
     super(objModels.ModelType.thruster, objParams);
   }
@@ -818,5 +861,5 @@ export class Spaceship extends UserControlledGameObject {
     newScore.livesLost = 1;
     newScore.owned = true;
     return newScore;
-  }
+p  }
 };

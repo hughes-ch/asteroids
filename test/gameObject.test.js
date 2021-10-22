@@ -45,6 +45,17 @@ let createModelInGameState = () => {
 };
 
 /**
+ * Cleanup and teardown
+ */
+beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
  * Tests
  */
 test('Test object decomposition', () => {
@@ -233,11 +244,17 @@ test('Test screen wrap', () => {
 });
 
 test('Test missiles are removed after their lifetime', () => {
+  let control = new intf.Control();
+  control.windowSize = [50, 50];
+  
   let missile = new go.Missile([0, 0], [0, 0], 0);
-  missile.updateState(new intf.Control(), objModels.Missile.lifetime/2);
+  missile.updateState(control, 0);
   expect(missile.isGarbage).toBe(false);
 
-  missile.updateState(new intf.Control(), objModels.Missile.lifetime);
+  let expectedLifeTime = math.norm(control.windowSize) *
+      missile._model.lifetime / missile._model.maxSpeed;
+  
+  missile.updateState(control, expectedLifeTime * 2);
   expect(missile.isGarbage).toBe(true);
 });
 

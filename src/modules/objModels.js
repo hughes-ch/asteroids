@@ -134,7 +134,7 @@ export const Asteroid = [
 
 export const Missile = {
   drag: 0,
-  lifetime: 2 /* sec */,
+  lifetime: 0.3 /* percent of diagonal of screen */,
   maxSpeed: 500,
   maxThrust: 0,
   rotationSpeed: 0,
@@ -146,7 +146,7 @@ export const Missile = {
 };
 
 export const Spaceship = {
-  drag: 0.1,
+  drag: 0.2,
   lifetime: Infinity,
   maxSpeed: 250, /* px/sec */
   maxThrust: 500,
@@ -160,11 +160,11 @@ export const Spaceship = {
 };
 
 export const Thruster = {
-  drag: Spaceship.drag,
+  drag: 0.2,
   lifetime: Infinity,
-  maxSpeed: Spaceship.maxSpeed,
-  maxThrust: Spaceship.maxThrust,
-  rotationSpeed: Spaceship.rotationSpeed,
+  maxSpeed: 250,
+  maxThrust: 500,
+  rotationSpeed: 360,
   vertices: [
     [0, -9],
     [3, -11],

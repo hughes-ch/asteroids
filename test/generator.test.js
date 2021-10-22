@@ -45,6 +45,17 @@ let createModelInGameState = () => {
 };
 
 /**
+ * Cleanup and teardown
+ */
+beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
  * Extended matchers
  *
  */

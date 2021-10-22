@@ -9,6 +9,20 @@
 import * as intf from '../src/modules/interfaces.js'
 import * as go from '../src/modules/gameObject.js'
 
+/**
+ * Cleanup and teardown
+ */
+beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
+ * Tests
+ */
 test('Test enqueueing items works correctly', () => {
   let queue = new intf.Queue();
   let range = 5;
