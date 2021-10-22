@@ -10,12 +10,15 @@
   "devDependencies": {
     "@babel/preset-env": "^7.15.8",
     "babel": "^6.23.0",
-    "jest": "^27.2.4"
+    "jest": "^27.2.4",
+    "jest-fetch-mock": "^3.0.3"
   },
   "scripts": {
     "api-test": "yarn build && pytest -v --cov=api/src --cov-report=term-missing",
     "api-install": "pip install -r requirements.txt",
     "build": "webpack",
+    "db-init": "export FLASK_APP=api/src && flask db-init",
+    "db-add": "export FLASK_APP=api/src && flask db-add",
     "debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
     "test": "jest --coverage",
     "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0 --cert=adhoc"
@@ -26,7 +29,9 @@
     ]
   },
   "dependencies": {
+    "@nastyox/rando.js": "^2.0.5",
     "collections": "^5.1.12",
+    "crypto-browserify": "^3.12.0",
     "earcut": "^2.2.3",
     "enumify": "^2.0.0",
     "just-clone": "^3.2.1",

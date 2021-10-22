@@ -1,0 +1,95 @@
+"""
+    Tests the api module
+
+    :copyright: Copyright (c) 2021 Chris Hughes
+    :license: Mozilla Public License Version 2.0
+"""
+from src.db import db, Score
+from test.fixtures import app
+
+def test_get_method(app):
+    """ Test /<token>/scores GET """
+
+    token1 = '12345'
+    token2 = '54321'
+
+    with app.app_context():
+        scoresInDb = []
+        scoresInDb.append(Score(token=token1, name='name1', score=100))
+        scoresInDb.append(Score(token=token1, name='name2', score=200))
+        scoresInDb.append(Score(token=token2, name='name3', score=300))
+        scoresInDb.append(Score(token=token1, name='name4', score=400))
+
+        for score in scoresInDb:
+            db.session.add(score)
+
+        db.session.commit()
+
+        with app.test_client() as client:
+            response = client.get(f'/api/{token1}/scores')
+            assert response.status_code == 200
+
+            data = response.get_json()
+            assert len(data) == 3
+
+            names = [score['name'] for score in data]
+            scores = [score['score'] for score in data]
+            
+            for score in scoresInDb:
+                if score.token == token1:
+                    assert score.name in names
+                    assert score.score in scores
+
+def test_post_method(app):
+    """ Test /<token>/scores POST """
+
+    token = '1234'
+    data = {
+        'name': 'name',
+        'score': 100,
+    }
+    
+    with app.test_client() as client:
+        response = client.post(f'/api/{token}/scores', json=data)
+        assert response.status_code == 200
+        assert response.get_json() == [data]
+
+    with app.app_context():
+        scores = Score.query.all()
+        assert len(scores) == 1
+        assert scores[0].token == token
+        assert scores[0].name == data['name']
+        assert scores[0].score == data['score']
+
+def test_post_invalid_token(app):
+    """ Test /<token>/scores POST with invalid token """
+    
+    with app.test_client() as client:
+        response = client.post(f'/api//scores', json={})
+        assert response.status_code == 404
+
+def test_post_invalid_data(app):
+    """ Test /<token>/scores POST with invalid data """
+    token = '1234'
+    data = {}
+    
+    with app.test_client() as client:
+        response = client.post(f'/api/{token}/scores', json=data)
+        assert response.status_code >= 500
+
+        data = { 'name':'name', 'score':'score' }
+        response = client.post(f'/api/{token}/scores', json=data)
+        assert response.status_code >= 500
+
+        data = { 'name':'name', 'score':100 }
+        response = client.post(f'/api/{token}/scores', json=data)
+        assert response.status_code == 200
+
+def test_get_invalid_token(app):
+    """ Test /<token>/scores GET with invalid token """
+
+    with app.test_client() as client:
+        response = client.get(f'/api//scores')
+        assert response.status_code == 404
+
+
