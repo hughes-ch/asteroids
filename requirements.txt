@@ -14,6 +14,7 @@ Jinja2==3.0.2
 MarkupSafe==2.0.1
 packaging==21.0
 pluggy==1.0.0
+psycopg2==2.9.1
 py==1.10.0
 pycparser==2.20
 pyOpenSSL==21.0.0
