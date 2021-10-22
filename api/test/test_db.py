@@ -4,7 +4,9 @@
     :copyright: Copyright (c) 2021 Chris Hughes
     :license: Mozilla Public License Version 2.0
 """
-from src import db
+import os
+
+from src import db, settings
 from test.fixtures import app
 
 def test_add_new_entry(app):
@@ -44,3 +46,11 @@ def test_get_scores_for(app):
             assert scoresForToken[ii]['name'] == names[ii]
             assert scoresForToken[ii]['score'] == scores[ii]
     
+def test_db_uri(app):
+    """ Tests the database URI """
+
+    with app.app_context():
+        assert db.db_uri() == settings.Settings.instance()['database-uri']
+
+        os.environ['DATABASE_URL'] = 'postgres://'
+        assert db.db_uri() == 'postgresql://'

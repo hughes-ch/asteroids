@@ -7,6 +7,7 @@
 import click
 import flask
 import flask_sqlalchemy
+import os
 
 from src.settings import Settings
 
@@ -49,6 +50,15 @@ def get_scores_for(token):
         })
 
     return results
+
+def db_uri():
+    """ Returns the database URI
+
+        :return: <str>
+        """
+    return os.environ.get('DATABASE_URL', '').replace(
+        'postgres://', 'postgresql://') or \
+        Settings.instance()['database-uri']
 
 @click.command('db-init')
 @flask.cli.with_appcontext
