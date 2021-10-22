@@ -50,7 +50,9 @@ def test_db_uri(app):
     """ Tests the database URI """
 
     with app.app_context():
-        assert db.db_uri() == settings.Settings.instance()['database-uri']
-
         os.environ['DATABASE_URL'] = 'postgres://'
         assert db.db_uri() == 'postgresql://'
+        os.environ.pop('DATABASE_URL')
+        
+        assert db.db_uri() == settings.Settings.instance()['database-uri']
+
