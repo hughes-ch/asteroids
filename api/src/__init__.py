@@ -11,7 +11,7 @@ def create_app():
     app = flask.Flask(__name__)
 
     from . import db
-    app.config['SQLALCHEMY_DATABASE_URI'] = Settings.instance()['database-uri']
+    app.config['SQLALCHEMY_DATABASE_URI'] = db.db_uri()
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.db.init_app(app)
     app.cli.add_command(db.db_init_command)
