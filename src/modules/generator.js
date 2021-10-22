@@ -252,6 +252,19 @@ export class GameplayGenerator extends ObjectGenerator {
    * @return {undefined}
    */
   _addSpecificActions(control) {
+    
+    // Remove thruster 
+    let spaceship = this._findShip();
+    if ((spaceship === undefined || !control.thrust) &&
+        (this._findThrusterIdx() >= 0)) {
+      
+      this._actions.unshift({
+        func: this._removeThruster,
+        timer: -1,
+        ctx: this,
+      });
+    }
+
     // Do not add any more objects if score does not allow
     if (!this._scorekeeper.allows()) {
       return; 
@@ -261,7 +274,7 @@ export class GameplayGenerator extends ObjectGenerator {
     let spaceshipTimer = this._isGameInitialized ?
         GameplayGenerator.timeBetweenLives : -1;
 
-    if (this._findShip() === undefined &&
+    if (spaceship === undefined &&
         this._actions.findValue(this._createNewShip, this._compareFuncs) < 0) {
       
       this._actions.unshift({
@@ -314,26 +327,16 @@ export class GameplayGenerator extends ObjectGenerator {
       });
     }
 
-    // Add/remove thruster
-    if (this._findShip() !== undefined) {
-      if (control.thrust) {
-        if (this._findThrusterIdx() < 0) {
-          this._actions.unshift({
-            func: this._createThruster,
-            timer: -1,
-            ctx: this,
-          });
-        }
-
-      } else {
-        if (this._findThrusterIdx() >= 0) {
-          this._actions.unshift({
-            func: this._removeThruster,
-            timer: -1,
-            ctx: this,
-          });
-        }
-      }
+    // Add thruster
+    if (spaceship !== undefined && 
+        control.thrust &&
+        this._findThrusterIdx() < 0) {
+      
+      this._actions.unshift({
+        func: this._createThruster,
+        timer: -1,
+        ctx: this,
+      });
     }
 
     // Create blasters from spacecraft

@@ -564,3 +564,25 @@ test('Test demo generator creates asteroids', () => {
   generator.makeNewObjectsFor(control);
   expect(objList.length).toEqual(gen.DemoGenerator.startingNumAsteroids);
 });
+
+test('Test thruster is removed when ship is', () => {
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  control.thrust = true;
+
+  let objList = [
+    new go.Spaceship([100, 100], 0),
+    new go.Thruster([100, 100], 0),
+  ];
+
+  let keeper = new intf.ScoreKeeper();
+  keeper.lives = 0;
+  let generator = new gen.GameplayGenerator(keeper);
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+  objList.shift();
+
+  generator.updateState(objList, 0);
+  generator.makeNewObjectsFor(control);
+  expect(objList.length).toEqual(0);
+});
