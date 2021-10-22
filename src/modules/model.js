@@ -814,7 +814,10 @@ export class HighScoreScreenModel extends BaseStateModel {
       } else if (control.character === 'Enter') {
         this._playerEntry = this._cursor;
         this._cursor = '';
-        this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
+
+        if (this._playerEntry) {
+          this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
+        }
 
       } else if (this._cursor.length < 
                  (BaseStateModel.maxCharsHighScore -

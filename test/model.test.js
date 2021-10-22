@@ -551,6 +551,24 @@ test('Test entry box updates with character controls', () => {
   expect(gameModel._playerEntry).toEqual('a');
 });
 
+test('Test entry box does not update on empty name', () => {
+  let mockSave = jest.spyOn(
+    model.HighScoreScreenModel.prototype,
+    '_saveHighScore');
+  
+  let keeper = new intf.ScoreKeeper();
+  let gameModel = new model.HighScoreScreenModel(keeper);
+  gameModel._fetchedScores = [];
+
+  let control = new intf.Control();
+  control.windowSize = [1000, 1000];
+  control.character = 'Enter';
+
+  gameModel.updateFrame(control);
+  expect(mockSave).not.toHaveBeenCalled();
+  mockSave.mockRestore();
+});
+
 test('Test the score is correct in the entry box', () => {
   let keeper = new intf.ScoreKeeper();
   keeper.score = 20;
