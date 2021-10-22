@@ -80,6 +80,14 @@ export class Controller {
         this._firstClick = false;
       }
     });
+
+    // Blur event on #force-keyboard. This will allow the 'done' key on the
+    // keyboard to submit a request to the database instead of requiring
+    // 'Enter'
+    document.getElementById('force-keyboard')
+      .addEventListener('blur', (event) => {
+        this._handleKeyboardDone();
+      });
   }
 
   /**
@@ -269,6 +277,18 @@ export class Controller {
     }
   }
 
+  /**
+   * Handles blurring of #force-keyboard by emulating Enter key
+   *
+   * @return {undefined}
+   */
+  _handleKeyboardDone() {
+    this._currentControlState.character = 'Enter';
+    this._sendControl(this._currentControlState);
+    this._currentControlState.character = undefined;
+    this._sendControl(this._currentControlState);
+  }
+  
   /**
    * Returns the current window size
    *
