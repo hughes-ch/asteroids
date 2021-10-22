@@ -109,6 +109,7 @@ export class BaseStateModel {
   static get highScoreColumnSize() { return 0.75; }
   static get cookieName() { return 'apitoken'; }
   static get tokenLength() { return 43; }
+  static get maxCharsHighScore () { return 19; }
 
   /**
    * Constructor
@@ -815,7 +816,10 @@ export class HighScoreScreenModel extends BaseStateModel {
         this._cursor = '';
         this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
 
-      } else {
+      } else if (this._cursor.length < 
+                 (BaseStateModel.maxCharsHighScore -
+                  String(this._scoreKeeper.score).length)) {
+        
         this._cursor += control.character;
       }
     }
