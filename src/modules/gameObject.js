@@ -147,6 +147,7 @@ export class GameObject {
     this.rotation = objParams.rotation;
     this.type = type;
     this._lastCanvasSize = undefined;
+    this._hidden = false;
 
     // Choose object model
     switch (this.type) {
@@ -331,6 +332,7 @@ export class GameObject {
     }
 
     return {
+      hidden: this._hidden,
       rotation: this.rotation,
       translation: this.coordinates,
       type: this.type,
@@ -583,8 +585,7 @@ export class Blaster extends GameObject {
    * @return {Boolean}
    */
   canCollideWith(obj) {
-    return obj.type === objModels.ModelType.asteroid ||
-      obj.type === objModels.ModelType.spaceship;
+    return obj.type === objModels.ModelType.asteroid;
   };
 
   /**
@@ -696,7 +697,6 @@ export class Asteroid extends GameObject {
    */
   canCollideWith(obj) {
     return obj.type === objModels.ModelType.missile ||
-      obj.type === objModels.ModelType.spaceship ||
       obj.type === objModels.ModelType.alien ||
       obj.type === objModels.ModelType.blaster;
   };
@@ -799,7 +799,6 @@ export class Alien extends GameObject {
    */
   canCollideWith(obj) {
     return obj.type === objModels.ModelType.missile ||
-      obj.type == objModels.ModelType.spaceship ||
       obj.type == objModels.ModelType.asteroid;
   };
  
@@ -840,6 +839,7 @@ class UserControlledGameObject extends GameObject {
    */
   constructor(type, objParams) {
     super(type, objParams);
+    this._timeAlive = 0;
   };
 
   /**
@@ -850,6 +850,8 @@ class UserControlledGameObject extends GameObject {
    * @return {Array} Updated movement vector
    */
   _calculateMovement(control, elapsedTime) {
+    this._timeAlive += elapsedTime;
+    
     // Determine rotation
     let scaledRotationChange =
         this._model.rotationSpeed * elapsedTime * control.rotate;
@@ -919,6 +921,13 @@ export class Thruster extends UserControlledGameObject {
 export class Spaceship extends UserControlledGameObject {
 
   /**
+   * Static constants
+   *
+   */
+  static get invincibleTime() { return 3; }
+  static get invincibleFlickerTime() { return 0.06; }
+
+  /**
    * Constructor
    *
    * @param {Array} coordinates  Initial starting coordinates
@@ -931,6 +940,8 @@ export class Spaceship extends UserControlledGameObject {
     objParams.rotation = rotation;
 
     super(objModels.ModelType.spaceship, objParams);
+    this._timeLastToggledFlicker = 0;
+    this._isModelDrawn = false;
   }
 
   /**
@@ -940,9 +951,10 @@ export class Spaceship extends UserControlledGameObject {
    * @return {Boolean}
    */
   canCollideWith(obj) {
-    return obj.type === objModels.ModelType.asteroid ||
-      obj.type === objModels.ModelType.blaster ||
-      obj.type === objModels.ModelType.alien;
+    return this._timeAlive > Spaceship.invincibleTime && (
+      obj.type === objModels.ModelType.asteroid ||
+        obj.type === objModels.ModelType.blaster ||
+        obj.type === objModels.ModelType.alien);
   };
 
   /**
@@ -955,5 +967,26 @@ export class Spaceship extends UserControlledGameObject {
     newScore.livesLost = 1;
     newScore.owned = true;
     return newScore;
-p  }
+  }
+
+  /**
+   * Decompose an object into its object model
+   *
+   * @return {obj} Simple representation of GameObject
+   */
+  decompose() {
+    if (this._timeAlive < Spaceship.invincibleTime) {
+      if (this._timeAlive - this._timeLastToggledFlicker >
+          Spaceship.invincibleFlickerTime) {
+
+        this._timeLastToggledFlicker = this._timeAlive +
+          Spaceship.invincibleFlickerTime;
+        this._hidden = !this._hidden;
+      }
+    } else {
+      this._hidden = false;
+    }
+
+    return super.decompose()
+  }
 };

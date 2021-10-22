@@ -169,3 +169,12 @@ test('Test copying controls', () => {
     expect(control3[property]).not.toEqual(control2[property]);
   }
 });
+
+test('Test hidden objects are not displayed by Frame', () => {
+  let frame = new intf.Frame();
+  let spaceship = new go.Spaceship([0, 0], 0);
+  spaceship._hidden = true;
+
+  frame.add(spaceship);
+  expect(frame._objModels.length).toEqual(0);
+});

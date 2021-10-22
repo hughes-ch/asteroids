@@ -354,7 +354,10 @@ test('Test what happens when an asteroid is destroyed', () => {
 test('Test that an asteroid/ship collision is detected', () => {
   let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
   let ship = new go.Spaceship([100, 100], 0);
-  expect(asteroid.collidesWith(ship)).toBe(true);
+  expect(ship.collidesWith(asteroid)).toBe(false);
+
+  ship._timeAlive = go.Spaceship.invincibleTime * 2;
+  expect(ship.collidesWith(asteroid)).toBe(true);
 });
 
 test('Test what happens when a ship is destroyed', () => {
@@ -449,8 +452,10 @@ test('Test alien juke calculation', () => {
 
 test('Test blaster can collide with spaceship', () => {
   let blaster = new go.Blaster([100, 100], 0);
-  let spaceship = new go.Spaceship([100, 100], 0);21
-  expect(blaster.collidesWith(spaceship)).toBe(true);
+  let spaceship = new go.Spaceship([100, 100], 0);
+  expect(spaceship.collidesWith(blaster)).toBe(false);
+  
+  spaceship._timeAlive = go.Spaceship.invincibleTime * 2;
   expect(spaceship.collidesWith(blaster)).toBe(true);
 });
 
@@ -471,7 +476,9 @@ test('Test blaster does not collide with alien', () => {
 test('Test alien can collide with spaceship', () => {
   let alien = new go.Alien([100, 100]);
   let spaceship = new go.Spaceship([100, 100], 0);
-  expect(alien.collidesWith(spaceship)).toBe(true);
+  expect(spaceship.collidesWith(alien)).toBe(false);
+  
+  spaceship._timeAlive = go.Spaceship.invincibleTime * 2;  
   expect(spaceship.collidesWith(alien)).toBe(true);
 });
 
@@ -526,3 +533,15 @@ test('Test scores of each object', () => {
   expect(spaceship.score().owned).toBe(true);
 
 });
+
+test('Test ship flickers when invincible', () => {
+  let spaceship = new go.Spaceship([0, 0], 0);
+  let control = new intf.Control();
+  let elapsedTime = go.Spaceship.invincibleFlickerTime +
+      (go.Spaceship.invincibleFlickerTime/2)
+
+  spaceship._timeAlive = elapsedTime;
+  spaceship.decompose();
+  expect(spaceship._hidden).toBe(true);
+});
+
