@@ -14,6 +14,7 @@ import {Enumify} from 'enumify'
 export class ModelType extends Enumify {
   static alien = new ModelType();
   static asteroid = new ModelType();
+  static debris = new ModelType();
   static missile = new ModelType();
   static spaceship = new ModelType();
   static thruster = new ModelType();
@@ -131,6 +132,16 @@ export const Asteroid = [
     ],
   },
 ];
+
+export const Debris = {
+  drag: 0,
+  lifetime: 0.1 /* percent of diagonal of screen */,
+  maxSpeed: 80,
+  maxThrust: 0,
+  rotationSpeed: 180,
+  vertices: [
+  ],
+};
 
 export const Missile = {
   drag: 0,

@@ -164,6 +164,10 @@ export class GameObject {
         this._model = clone(objModels.Missile);
         break;
 
+      case objModels.ModelType.debris:
+        this._model = clone(objModels.Debris);
+        break;
+
       case objModels.ModelType.spaceship:
         this._model = clone(objModels.Spaceship);
         break;
@@ -302,8 +306,16 @@ export class GameObject {
    * @return {[GameObject]} A list of gameObjects
    */
   destroy() {
+    let debris = [];
+    for (let ii = 0; ii < this._model.vertices.length; ii++) {
+      let nextVertex = ii === this._model.vertices.length-1 ?
+          this._model.vertices[0] : this._model.vertices[ii+1];
+      let thisEdge = [this._model.vertices[ii], nextVertex];
+      debris.push(new Debris(this.coordinates, thisEdge, this.rotation));
+    }
+    
     this.isGarbage = true;
-    return [];
+    return debris;
   }
 
   /**
@@ -406,6 +418,85 @@ export class GameObject {
       (vertex) => math.divide(vertex, ratio));
   }
 };
+
+/**
+ * Debris
+ *
+ */
+export class Debris extends GameObject {
+
+  /**
+   * Constructor
+   *
+   * @param {Array}  coordinates  Coordinates of destroyed object
+   * @param {Array}  edge         Two vertices that represent an edge
+   * @param {number} rotation     Rotation of destroyed object
+   * @return {Debris}
+   */
+  constructor(coordinates, edge, rotation) {
+    // Select "anchor point" or point that doesn't rotate
+    let rotatedEdge = [
+      GameObject.rotateVector(edge[0], rotation),
+      GameObject.rotateVector(edge[1], rotation),
+    ];
+      
+    let translatedEdge = [
+      math.add(rotatedEdge[0], coordinates),
+      math.add(rotatedEdge[1], coordinates),
+    ];
+    
+    let anchorPoint = translatedEdge[0];
+    let objParams = new ObjectParameters();
+    objParams.coordinates = anchorPoint;
+    objParams.movement = undefined;
+    super(objModels.ModelType.debris, objParams);
+
+    // Calculate vertices for decomposition
+    this._vertices = [
+      [0, 0],
+      math.subtract(translatedEdge[1], anchorPoint),
+    ];
+  }
+
+  /**
+   * Decompose an object into its object model
+   *
+   * @return {obj} Simple representation of GameObject
+   */
+  decompose() {
+    // Rotate object model
+    let rotatedModel = [];
+    for (let vertex of this._vertices) {
+      rotatedModel.push(GameObject.rotateVector(vertex, this.rotation));
+    }
+
+    return {
+      rotation: this.rotation,
+      translation: this.coordinates,
+      type: this.type,
+      vertices: rotatedModel,
+    };
+  }
+
+  /**
+   * Returns updated movement vector
+   *
+   * @param {obj}   control      Control object
+   * @param {Date}  elapsedTime  Time since last update
+   * @return {Array} Updated movement vector
+   */
+  _calculateMovement(control, elapsedTime) {
+
+    // Movement must be calculated after model is chosen by base class
+    if (this.movement === undefined) {
+      let movementVec = [0, this._model.maxSpeed];
+      let movementAngle = Math.random() * 360;
+      this.movement = GameObject.rotateVector(movementVec, movementAngle);
+    }
+
+    return this.movement;
+  }
+}; 
 
 /** 
  * A missile
@@ -557,6 +648,9 @@ export class Asteroid extends GameObject {
       for (let ii = 0; ii < Asteroid.debrisCount; ii++) {
         debris.push(new Asteroid(this.coordinates, newScale));
       }
+
+    } else {
+      return super.destroy();
     }
 
     return debris;

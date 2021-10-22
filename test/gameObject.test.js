@@ -303,8 +303,15 @@ test('Test that a missile/ship collision is ignored', () => {
 test('Test what happens when a missile is destroyed', () => {
   let missile = new go.Missile([100, 100], [0, 0], 0);
   let debris = missile.destroy();
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toEqual(3);
   expect(missile.isGarbage).toBe(true);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 });
 
 test('Test what happens when an asteroid is destroyed', () => {
@@ -331,8 +338,15 @@ test('Test what happens when an asteroid is destroyed', () => {
 
   asteroid = new go.Asteroid([100, 100], go.Asteroid.smallScale);
   debris = asteroid.destroy();
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toBeGreaterThan(0);
   expect(asteroid.isGarbage).toBe(true);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 
   mockRandom.mockRestore();  
 });
@@ -347,7 +361,14 @@ test('Test what happens when a ship is destroyed', () => {
   let ship = new go.Spaceship([100, 100], 0);
   let debris = ship.destroy();
   expect(ship.isGarbage).toBe(true);
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toBeGreaterThan(0);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 });
 
 test('Verify garbage does not collide with other stuff', () => {
