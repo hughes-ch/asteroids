@@ -18,6 +18,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel='stylesheet' href='{{ url_for("static", filename="css/styles.css") }}' />
+
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:type" content="article" />
+	<meta property="og:title" content="{{ settings['page-title'] }}" />
+	<meta property="og:description" content="A modern remake of the classic Asteroids game" />
+	<meta property="og:url" content="{{ settings['full-url'] }}" />
+	<meta property="og:site_name" content='{{ settings["page-title"] }}' />
+	<meta property="og:image" content='{{ settings["logo-url"] }}' />
+    <meta name='author' content='Chris Hughes' />
+
+    <link href='{{ settings["favicon-url"] }}'
+          rel='icon' sizes='192x192'
+          type='image/png'>
+    <link href='{{ settings["favicon-url"] }}'
+          rel='apple-touch-icon' type='image/png'
+          sizes='192x192'>
   </head>
   <body>
     <div>
