@@ -1,3 +1,4 @@
+'use strict';
 /**
  * Controller module
  * 
@@ -54,7 +55,7 @@ export class Controller {
 
     // Window resize event
     window.addEventListener('resize', (event) => {
-      this._handleResizeEvent(event);
+      this._handleResizeEvent();
     });
     
     // Click events. The first click sets up touch and
@@ -65,6 +66,9 @@ export class Controller {
         this._addOrientationEvent();
         
         let canvas = document.getElementById('canvas');
+        canvas.addEventListener('touchmove', (event) => {
+          this._handleClickEvent(event);
+        });
         canvas.addEventListener('touchstart', (event) => {
           this._handleClickEvent(event);
         });
@@ -74,12 +78,19 @@ export class Controller {
         canvas.addEventListener('touchcancel', (event) => {
           this._handleClickEvent(event);
         });
-        canvas.addEventListener('touchmove', (event) => {
-          this._handleClickEvent(event);
-        });
+        
         this._firstClick = false;
       }
+      event.preventDefault();        
     });
+
+    // Blur event on #force-keyboard. This will allow the 'done' key on the
+    // keyboard to submit a request to the database instead of requiring
+    // 'Enter'
+    document.getElementById('force-keyboard')
+      .addEventListener('blur', (event) => {
+        this._handleKeyboardDone();
+      });
   }
 
   /**
@@ -171,7 +182,7 @@ export class Controller {
    *
    * @return {undefined}
    */
-  _handleResizeEvent(event) {
+  _handleResizeEvent() {
     this._currentControlState.character = undefined;
     this._currentControlState.windowSize = this._getWindowSize();
     this._sendControl(this._currentControlState);
@@ -270,11 +281,24 @@ export class Controller {
   }
 
   /**
+   * Handles blurring of #force-keyboard by emulating Enter key
+   *
+   * @return {undefined}
+   */
+  _handleKeyboardDone() {
+    this._currentControlState.character = 'Enter';
+    this._sendControl(this._currentControlState);
+    this._currentControlState.character = undefined;
+    this._sendControl(this._currentControlState);
+  }
+  
+  /**
    * Returns the current window size
    *
    * @return {Array}  With [height, width]
    */
   _getWindowSize() {
+    window.scrollTo(0, 0);
     return [
       window.innerWidth,
       window.innerHeight,
@@ -288,6 +312,7 @@ export class Controller {
    * @return {undefined}
    */
   _sendControl(control) {
+    control.windowSize = this._getWindowSize();    
     this._eventQueue.enqueue(control.copy());
   }
 

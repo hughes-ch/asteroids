@@ -108,6 +108,15 @@ class TriangulatedObj {
 export class GameObject {
 
   /**
+   * Static method to retrieve device pixel ratio
+   *
+   * @return {number}
+   */
+  static getDevicePixelRatio() {
+    return window.devicePixelRatio / 2;
+  }
+
+  /**
    * Utility function to rotate a vector
    *
    * @param {Array} vector    Vector to rotate
@@ -134,9 +143,11 @@ export class GameObject {
     this.coordinates = objParams.coordinates;
     this.isGarbage = false;
     this.movement = objParams.movement;
+    this.remainingLife = 1 /* percent */;
     this.rotation = objParams.rotation;
     this.type = type;
     this._lastCanvasSize = undefined;
+    this._hidden = false;
 
     // Choose object model
     switch (this.type) {
@@ -152,6 +163,10 @@ export class GameObject {
       case objModels.ModelType.blaster:
       case objModels.ModelType.missile:
         this._model = clone(objModels.Missile);
+        break;
+
+      case objModels.ModelType.debris:
+        this._model = clone(objModels.Debris);
         break;
 
       case objModels.ModelType.spaceship:
@@ -178,6 +193,8 @@ export class GameObject {
       (vertex) => {
         return math.multiply(vertex, objParams.scale);
       });
+
+    this._scaleOnDevicePixelRatio();
   }
 
   /**
@@ -201,18 +218,28 @@ export class GameObject {
     
     this._lastCanvasSize = control.windowSize;
 
-    // Determine if object is at end-of-life
-    this._model.lifetime -= numSecSinceLastUpdate;
-    if (this._model.lifetime <= 0) {
-      this.isGarbage = true;
-    }
-    
     // Determine coordinates
     this.movement = this._calculateMovement(control, numSecSinceLastUpdate);
 
     this.coordinates = math.add(
       this.coordinates,
       math.multiply(this.movement, numSecSinceLastUpdate));
+
+    // Determine if object is at end-of-life
+    if (this._model.lifetime < Infinity) {
+      let amountOfLifeTaken = Math.abs(
+        math.norm(
+          math.multiply(
+            this.movement,
+            numSecSinceLastUpdate)) /
+          (this._model.lifetime * math.norm(control.windowSize))
+      );
+      
+      this.remainingLife -= amountOfLifeTaken;
+      if (this.remainingLife <= 0) {
+        this.isGarbage = true;
+      }
+    }
 
     // Determine wrapped coordinates
     if (control.windowSize[0] < Infinity && control.windowSize[1] < Infinity) {
@@ -280,8 +307,16 @@ export class GameObject {
    * @return {[GameObject]} A list of gameObjects
    */
   destroy() {
+    let debris = [];
+    for (let ii = 0; ii < this._model.vertices.length; ii++) {
+      let nextVertex = ii === this._model.vertices.length-1 ?
+          this._model.vertices[0] : this._model.vertices[ii+1];
+      let thisEdge = [this._model.vertices[ii], nextVertex];
+      debris.push(new Debris(this.coordinates, thisEdge, this.rotation));
+    }
+    
     this.isGarbage = true;
-    return [];
+    return debris;
   }
 
   /**
@@ -297,6 +332,7 @@ export class GameObject {
     }
 
     return {
+      hidden: this._hidden,
       rotation: this.rotation,
       translation: this.coordinates,
       type: this.type,
@@ -364,7 +400,105 @@ export class GameObject {
     // Objects can wrap by default
     return true;
   }
+
+  /**
+   * Scale based on device pixel ratio
+   *
+   * @return {undefined}
+   */
+  _scaleOnDevicePixelRatio() {
+    let ratio = GameObject.getDevicePixelRatio();
+
+    this._model.maxSpeed /= ratio;
+    this._model.maxThrust /= ratio;
+
+    if (this.movement) {
+      this.movement = math.divide(this.movement, ratio);
+    }
+    
+    this._model.vertices = this._model.vertices.map(
+      (vertex) => math.divide(vertex, ratio));
+  }
 };
+
+/**
+ * Debris
+ *
+ */
+export class Debris extends GameObject {
+
+  /**
+   * Constructor
+   *
+   * @param {Array}  coordinates  Coordinates of destroyed object
+   * @param {Array}  edge         Two vertices that represent an edge
+   * @param {number} rotation     Rotation of destroyed object
+   * @return {Debris}
+   */
+  constructor(coordinates, edge, rotation) {
+    // Select "anchor point" or point that doesn't rotate
+    let rotatedEdge = [
+      GameObject.rotateVector(edge[0], rotation),
+      GameObject.rotateVector(edge[1], rotation),
+    ];
+      
+    let translatedEdge = [
+      math.add(rotatedEdge[0], coordinates),
+      math.add(rotatedEdge[1], coordinates),
+    ];
+    
+    let anchorPoint = translatedEdge[0];
+    let objParams = new ObjectParameters();
+    objParams.coordinates = anchorPoint;
+    objParams.movement = undefined;
+    super(objModels.ModelType.debris, objParams);
+
+    // Calculate vertices for decomposition
+    this._vertices = [
+      [0, 0],
+      math.subtract(translatedEdge[1], anchorPoint),
+    ];
+  }
+
+  /**
+   * Decompose an object into its object model
+   *
+   * @return {obj} Simple representation of GameObject
+   */
+  decompose() {
+    // Rotate object model
+    let rotatedModel = [];
+    for (let vertex of this._vertices) {
+      rotatedModel.push(GameObject.rotateVector(vertex, this.rotation));
+    }
+
+    return {
+      rotation: this.rotation,
+      translation: this.coordinates,
+      type: this.type,
+      vertices: rotatedModel,
+    };
+  }
+
+  /**
+   * Returns updated movement vector
+   *
+   * @param {obj}   control      Control object
+   * @param {Date}  elapsedTime  Time since last update
+   * @return {Array} Updated movement vector
+   */
+  _calculateMovement(control, elapsedTime) {
+
+    // Movement must be calculated after model is chosen by base class
+    if (this.movement === undefined) {
+      let movementVec = [0, this._model.maxSpeed];
+      let movementAngle = Math.random() * 360;
+      this.movement = GameObject.rotateVector(movementVec, movementAngle);
+    }
+
+    return this.movement;
+  }
+}; 
 
 /** 
  * A missile
@@ -451,8 +585,7 @@ export class Blaster extends GameObject {
    * @return {Boolean}
    */
   canCollideWith(obj) {
-    return obj.type === objModels.ModelType.asteroid ||
-      obj.type === objModels.ModelType.spaceship;
+    return obj.type === objModels.ModelType.asteroid;
   };
 
   /**
@@ -477,7 +610,7 @@ export class Asteroid extends GameObject {
    */
   static get debrisCount() { return 2; }
   
-  static get largeScale() { return 3; }
+  static get largeScale() { return 2; }
   static get mediumScale() { return 1; }
   static get smallScale() { return 0.5; }
 
@@ -516,6 +649,9 @@ export class Asteroid extends GameObject {
       for (let ii = 0; ii < Asteroid.debrisCount; ii++) {
         debris.push(new Asteroid(this.coordinates, newScale));
       }
+
+    } else {
+      return super.destroy();
     }
 
     return debris;
@@ -561,7 +697,6 @@ export class Asteroid extends GameObject {
    */
   canCollideWith(obj) {
     return obj.type === objModels.ModelType.missile ||
-      obj.type === objModels.ModelType.spaceship ||
       obj.type === objModels.ModelType.alien ||
       obj.type === objModels.ModelType.blaster;
   };
@@ -664,7 +799,6 @@ export class Alien extends GameObject {
    */
   canCollideWith(obj) {
     return obj.type === objModels.ModelType.missile ||
-      obj.type == objModels.ModelType.spaceship ||
       obj.type == objModels.ModelType.asteroid;
   };
  
@@ -705,6 +839,7 @@ class UserControlledGameObject extends GameObject {
    */
   constructor(type, objParams) {
     super(type, objParams);
+    this._timeAlive = 0;
   };
 
   /**
@@ -715,6 +850,8 @@ class UserControlledGameObject extends GameObject {
    * @return {Array} Updated movement vector
    */
   _calculateMovement(control, elapsedTime) {
+    this._timeAlive += elapsedTime;
+    
     // Determine rotation
     let scaledRotationChange =
         this._model.rotationSpeed * elapsedTime * control.rotate;
@@ -768,8 +905,10 @@ export class Thruster extends UserControlledGameObject {
   constructor(coordinates, movement, rotation) {
     let objParams = new ObjectParameters();
     objParams.coordinates = coordinates;
-    objParams.movement = movement;
     objParams.rotation = rotation;
+    objParams.movement = math.multiply(
+      movement,
+      GameObject.getDevicePixelRatio());
 
     super(objModels.ModelType.thruster, objParams);
   }
@@ -780,6 +919,13 @@ export class Thruster extends UserControlledGameObject {
  *
  */
 export class Spaceship extends UserControlledGameObject {
+
+  /**
+   * Static constants
+   *
+   */
+  static get invincibleTime() { return 3; }
+  static get invincibleFlickerTime() { return 0.06; }
 
   /**
    * Constructor
@@ -794,6 +940,8 @@ export class Spaceship extends UserControlledGameObject {
     objParams.rotation = rotation;
 
     super(objModels.ModelType.spaceship, objParams);
+    this._timeLastToggledFlicker = 0;
+    this._isModelDrawn = false;
   }
 
   /**
@@ -803,9 +951,10 @@ export class Spaceship extends UserControlledGameObject {
    * @return {Boolean}
    */
   canCollideWith(obj) {
-    return obj.type === objModels.ModelType.asteroid ||
-      obj.type === objModels.ModelType.blaster ||
-      obj.type === objModels.ModelType.alien;
+    return this._timeAlive > Spaceship.invincibleTime && (
+      obj.type === objModels.ModelType.asteroid ||
+        obj.type === objModels.ModelType.blaster ||
+        obj.type === objModels.ModelType.alien);
   };
 
   /**
@@ -818,5 +967,26 @@ export class Spaceship extends UserControlledGameObject {
     newScore.livesLost = 1;
     newScore.owned = true;
     return newScore;
+  }
+
+  /**
+   * Decompose an object into its object model
+   *
+   * @return {obj} Simple representation of GameObject
+   */
+  decompose() {
+    if (this._timeAlive < Spaceship.invincibleTime) {
+      if (this._timeAlive - this._timeLastToggledFlicker >
+          Spaceship.invincibleFlickerTime) {
+
+        this._timeLastToggledFlicker = this._timeAlive +
+          Spaceship.invincibleFlickerTime;
+        this._hidden = !this._hidden;
+      }
+    } else {
+      this._hidden = false;
+    }
+
+    return super.decompose()
   }
 };

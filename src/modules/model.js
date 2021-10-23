@@ -109,6 +109,7 @@ export class BaseStateModel {
   static get highScoreColumnSize() { return 0.75; }
   static get cookieName() { return 'apitoken'; }
   static get tokenLength() { return 43; }
+  static get maxCharsHighScore () { return 19; }
 
   /**
    * Constructor
@@ -429,7 +430,7 @@ export class GameStateModel extends BaseStateModel {
       gameOverText.justify = 'center';
       gameOverText.position = [
         control.windowSize[0]/2,
-        control.windowSize[1]/2 - gameOverText.sizePx,
+        control.windowSize[1]/2,
       ];
 
       let scoreText = new intf.TextObject(`SCORE: ${this._scoreKeeper.score}`);
@@ -437,7 +438,7 @@ export class GameStateModel extends BaseStateModel {
       scoreText.justify = 'center';
       scoreText.position = [
         control.windowSize[0]/2,
-        control.windowSize[1]/2,
+        control.windowSize[1]/2 + gameOverText.sizePx,
       ];
       
       frame.addText(gameOverText);
@@ -510,6 +511,25 @@ export class HighScoreScreenModel extends BaseStateModel {
    */
   _addOverlay(control, frame) {
 
+    // First, make the entry box. This has the potential to take the whole
+    // screen on mobile browsers. 
+    const columnSize = BaseStateModel.highScoreColumnSize;
+    const padding = (1-columnSize)/2;
+
+    let bounds = {
+      xmin: control.windowSize[0] * padding,
+      xmax: control.windowSize[0] * (columnSize + padding),
+      ymin: 0,
+      ymax: control.windowSize[1],
+      font: BaseStateModel.smallText * control.windowSize[0],
+    }
+
+    this._makeEntryBox(bounds, control, frame);
+
+    if (bounds.ymax <= 0) {
+      return;
+    }
+
     // Add title
     let title = new intf.TextObject('HIGH SCORES');
     title.sizePx = BaseStateModel.medText * control.windowSize[0];
@@ -520,21 +540,9 @@ export class HighScoreScreenModel extends BaseStateModel {
     ];
     
     frame.addText(title);
-
-    // Determine bounds of window, accounting for title space
-    const columnSize = BaseStateModel.highScoreColumnSize;
-    const padding = (1-columnSize)/2;
-
-    let bounds = {
-      xmin: control.windowSize[0] * padding,
-      xmax: control.windowSize[0] * (columnSize + padding),
-      ymin: title.sizePx,
-      ymax: control.windowSize[1],
-      font: BaseStateModel.smallText * control.windowSize[0],
-    }
+    bounds.ymin = title.sizePx;
 
     // Create contents of table
-    this._makeEntryBox(bounds, control, frame);
     this._createHighScoreTable(bounds, frame);
   }
 
@@ -624,6 +632,12 @@ export class HighScoreScreenModel extends BaseStateModel {
    * @return {undefined} 
    */
   _createHighScoreTable(bounds, frame) {
+
+    // Don't bother if ymax is 0. This can happen when the mobile
+    // keyboard is displayed.
+    if (bounds.ymax <= 0) {
+      return;
+    }
     
     // Create headers
     let nameColumn = new intf.TextObject('NAME');
@@ -719,8 +733,13 @@ export class HighScoreScreenModel extends BaseStateModel {
     let input = document.getElementById('force-keyboard');
     input.style.visibility = 'visible';
     input.style.position = 'absolute';
-    input.style.left = `${nameBoxLabel.position[0]}px`;
-    input.style.bottom = `${nameBoxLabel.sizePx}px`;
+    input.style.left = '0px';
+    input.style.top = '0px';
+    input.style.fontSize = `${nameBoxLabel.sizePx}px`;
+
+    if (input === document.activeElement) {
+      nameBoxLabel.position[1] = nameBoxLabel.sizePx;
+    }
 
     // Note that the controller does the actual focus
   }
@@ -813,9 +832,15 @@ export class HighScoreScreenModel extends BaseStateModel {
       } else if (control.character === 'Enter') {
         this._playerEntry = this._cursor;
         this._cursor = '';
-        this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
 
-      } else {
+        if (this._playerEntry) {
+          this._saveHighScore(this._playerEntry, this._scoreKeeper.score);
+        }
+
+      } else if (this._cursor.length < 
+                 (BaseStateModel.maxCharsHighScore -
+                  String(this._scoreKeeper.score).length)) {
+        
         this._cursor += control.character;
       }
     }

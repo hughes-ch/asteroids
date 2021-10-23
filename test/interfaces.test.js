@@ -9,6 +9,20 @@
 import * as intf from '../src/modules/interfaces.js'
 import * as go from '../src/modules/gameObject.js'
 
+/**
+ * Cleanup and teardown
+ */
+beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
+ * Tests
+ */
 test('Test enqueueing items works correctly', () => {
   let queue = new intf.Queue();
   let range = 5;
@@ -154,4 +168,13 @@ test('Test copying controls', () => {
   for (let property in control2) {
     expect(control3[property]).not.toEqual(control2[property]);
   }
+});
+
+test('Test hidden objects are not displayed by Frame', () => {
+  let frame = new intf.Frame();
+  let spaceship = new go.Spaceship([0, 0], 0);
+  spaceship._hidden = true;
+
+  frame.add(spaceship);
+  expect(frame._objModels.length).toEqual(0);
 });

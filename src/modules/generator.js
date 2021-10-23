@@ -213,6 +213,7 @@ export class GameplayGenerator extends ObjectGenerator {
    *
    */
   static get minSafeDistancePercent() { return 0.4; }
+  static get numTimesRetryAsteroid() { return 100; }
   static get nominalBlasterTime() { return 2; }
   static get startingAsteroidCount() { return 4; }
   static get timeBetweenLives() { return 3; }
@@ -251,6 +252,19 @@ export class GameplayGenerator extends ObjectGenerator {
    * @return {undefined}
    */
   _addSpecificActions(control) {
+    
+    // Remove thruster 
+    let spaceship = this._findShip();
+    if ((spaceship === undefined || !control.thrust) &&
+        (this._findThrusterIdx() >= 0)) {
+      
+      this._actions.unshift({
+        func: this._removeThruster,
+        timer: -1,
+        ctx: this,
+      });
+    }
+
     // Do not add any more objects if score does not allow
     if (!this._scorekeeper.allows()) {
       return; 
@@ -260,7 +274,7 @@ export class GameplayGenerator extends ObjectGenerator {
     let spaceshipTimer = this._isGameInitialized ?
         GameplayGenerator.timeBetweenLives : -1;
 
-    if (this._findShip() === undefined &&
+    if (spaceship === undefined &&
         this._actions.findValue(this._createNewShip, this._compareFuncs) < 0) {
       
       this._actions.unshift({
@@ -313,26 +327,16 @@ export class GameplayGenerator extends ObjectGenerator {
       });
     }
 
-    // Add/remove thruster
-    if (this._findShip() !== undefined) {
-      if (control.thrust) {
-        if (this._findThrusterIdx() < 0) {
-          this._actions.unshift({
-            func: this._createThruster,
-            timer: -1,
-            ctx: this,
-          });
-        }
-
-      } else {
-        if (this._findThrusterIdx() >= 0) {
-          this._actions.unshift({
-            func: this._removeThruster,
-            timer: -1,
-            ctx: this,
-          });
-        }
-      }
+    // Add thruster
+    if (spaceship !== undefined && 
+        control.thrust &&
+        this._findThrusterIdx() < 0) {
+      
+      this._actions.unshift({
+        func: this._createThruster,
+        timer: -1,
+        ctx: this,
+      });
     }
 
     // Create blasters from spacecraft
@@ -518,7 +522,9 @@ export class GameplayGenerator extends ObjectGenerator {
    * @return {Array} Coordinates of new asteroid
    */
   _calculateNewAsteroidPos(screenSize) {
-    for (let tryCount = 0; tryCount < 5; tryCount++) {
+    for (let tryCount = 0;
+         tryCount < GameplayGenerator.numTimesRetryAsteroid;
+         tryCount++) {
       // Calculate new position
       // 
       // Randomly select Y. Then make X satisfy:
@@ -526,17 +532,17 @@ export class GameplayGenerator extends ObjectGenerator {
       // 
       // Where h is minimum distance between ship/asteroid,
       // calculated as a fraction from midpoint to outside of canvas
-      let maxDistance = Math.sqrt(((screenSize[0]/2)**2) +
-                                  ((screenSize[1]/2)**2))
+      let distance = Math.sqrt(((screenSize[0]/4)**2) +
+                                  ((screenSize[1]/4)**2))
 
-      let minDistance = maxDistance * GameplayGenerator.minSafeDistancePercent;
       let yCoordinate = Math.random() * screenSize[1];
       let shipCoordinates = this._findShipCoordinates();
-      let distance = (Math.random() * (maxDistance-minDistance)) + minDistance;
-
-      let xCoordinate = Math.sqrt((distance**2) -
-                                  ((yCoordinate-shipCoordinates[1])**2) +
-                                  shipCoordinates[0]);
+      let xoffset = Math.sqrt(
+        (distance**2) - ((yCoordinate-shipCoordinates[1])**2));
+      
+      let xCoordinate = Math.random() > 0.5 ?
+          xoffset + shipCoordinates[0] :
+          shipCoordinates[0] - xoffset;
 
       // Verify wrapped position does not get too close
       if (xCoordinate > screenSize[0]) {
@@ -554,7 +560,7 @@ export class GameplayGenerator extends ObjectGenerator {
       let wrappedDistance = Math.sqrt(((shipCoordinates[0]-xCoordinate)**2) +
                                       ((shipCoordinates[1]-yCoordinate)**2));
 
-      if (wrappedDistance >= minDistance) {
+      if (wrappedDistance >= distance) {
         return [xCoordinate, yCoordinate];
       }
     }

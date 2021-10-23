@@ -24,6 +24,7 @@ beforeEach(() => {
     .mockImplementation(() => undefined);
   mockResetCanvas = jest.spyOn(view.Canvas.prototype, 'resetCanvas')
     .mockImplementation(() => undefined);
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);  
 });
 
 afterEach(() => {

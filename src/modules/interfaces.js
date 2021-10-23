@@ -95,7 +95,10 @@ export class Frame {
    * @param {GameObject} obj
    */
   add(obj) {
-    this._objModels.push(obj.decompose());
+    let newModel = obj.decompose();
+    if (!newModel.hidden) {
+      this._objModels.push(newModel);
+    }
   }
 
   /**

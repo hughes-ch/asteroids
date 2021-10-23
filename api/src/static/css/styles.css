@@ -1,15 +1,12 @@
 html, body {
     background-color: black;
     font-family: 'VT323', monospace;
-    height: 100vh;
     margin: 0px;
     overflow: hidden;
     padding: 0px;
-    width: 100vh;
 }
 
 canvas {
-    height: 100vh;
     overflow: hidden;
     position: absolute;
     width: 100vw;
@@ -17,8 +14,10 @@ canvas {
 }
 
 #force-keyboard {
+    caret-color: transparent;
     visibility: hidden;
     margin: 0px;
     padding: 0px;
+    position: absolute;
     z-index: 1;
 }

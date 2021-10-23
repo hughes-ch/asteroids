@@ -45,6 +45,17 @@ let createModelInGameState = () => {
 };
 
 /**
+ * Cleanup and teardown
+ */
+beforeEach(() => {
+  go.GameObject.getDevicePixelRatio = jest.fn().mockReturnValue(1);
+}); 
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+/**
  * Tests
  */
 test('Test object decomposition', () => {
@@ -233,11 +244,17 @@ test('Test screen wrap', () => {
 });
 
 test('Test missiles are removed after their lifetime', () => {
+  let control = new intf.Control();
+  control.windowSize = [50, 50];
+  
   let missile = new go.Missile([0, 0], [0, 0], 0);
-  missile.updateState(new intf.Control(), objModels.Missile.lifetime/2);
+  missile.updateState(control, 0);
   expect(missile.isGarbage).toBe(false);
 
-  missile.updateState(new intf.Control(), objModels.Missile.lifetime);
+  let expectedLifeTime = math.norm(control.windowSize) *
+      missile._model.lifetime / missile._model.maxSpeed;
+  
+  missile.updateState(control, expectedLifeTime * 2);
   expect(missile.isGarbage).toBe(true);
 });
 
@@ -286,8 +303,15 @@ test('Test that a missile/ship collision is ignored', () => {
 test('Test what happens when a missile is destroyed', () => {
   let missile = new go.Missile([100, 100], [0, 0], 0);
   let debris = missile.destroy();
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toEqual(3);
   expect(missile.isGarbage).toBe(true);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 });
 
 test('Test what happens when an asteroid is destroyed', () => {
@@ -314,8 +338,15 @@ test('Test what happens when an asteroid is destroyed', () => {
 
   asteroid = new go.Asteroid([100, 100], go.Asteroid.smallScale);
   debris = asteroid.destroy();
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toBeGreaterThan(0);
   expect(asteroid.isGarbage).toBe(true);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 
   mockRandom.mockRestore();  
 });
@@ -323,14 +354,24 @@ test('Test what happens when an asteroid is destroyed', () => {
 test('Test that an asteroid/ship collision is detected', () => {
   let asteroid = new go.Asteroid([100, 100], go.Asteroid.largeScale);
   let ship = new go.Spaceship([100, 100], 0);
-  expect(asteroid.collidesWith(ship)).toBe(true);
+  expect(ship.collidesWith(asteroid)).toBe(false);
+
+  ship._timeAlive = go.Spaceship.invincibleTime * 2;
+  expect(ship.collidesWith(asteroid)).toBe(true);
 });
 
 test('Test what happens when a ship is destroyed', () => {
   let ship = new go.Spaceship([100, 100], 0);
   let debris = ship.destroy();
   expect(ship.isGarbage).toBe(true);
-  expect(debris.length).toEqual(0);
+  expect(debris.length).toBeGreaterThan(0);
+
+  for (let piece of debris) {
+    let length = math.norm(
+      math.subtract(piece._vertices[0], piece._vertices[1]));
+
+    expect(length).toBeGreaterThan(0);
+  }
 });
 
 test('Verify garbage does not collide with other stuff', () => {
@@ -411,8 +452,10 @@ test('Test alien juke calculation', () => {
 
 test('Test blaster can collide with spaceship', () => {
   let blaster = new go.Blaster([100, 100], 0);
-  let spaceship = new go.Spaceship([100, 100], 0);21
-  expect(blaster.collidesWith(spaceship)).toBe(true);
+  let spaceship = new go.Spaceship([100, 100], 0);
+  expect(spaceship.collidesWith(blaster)).toBe(false);
+  
+  spaceship._timeAlive = go.Spaceship.invincibleTime * 2;
   expect(spaceship.collidesWith(blaster)).toBe(true);
 });
 
@@ -433,7 +476,9 @@ test('Test blaster does not collide with alien', () => {
 test('Test alien can collide with spaceship', () => {
   let alien = new go.Alien([100, 100]);
   let spaceship = new go.Spaceship([100, 100], 0);
-  expect(alien.collidesWith(spaceship)).toBe(true);
+  expect(spaceship.collidesWith(alien)).toBe(false);
+  
+  spaceship._timeAlive = go.Spaceship.invincibleTime * 2;  
   expect(spaceship.collidesWith(alien)).toBe(true);
 });
 
@@ -488,3 +533,15 @@ test('Test scores of each object', () => {
   expect(spaceship.score().owned).toBe(true);
 
 });
+
+test('Test ship flickers when invincible', () => {
+  let spaceship = new go.Spaceship([0, 0], 0);
+  let control = new intf.Control();
+  let elapsedTime = go.Spaceship.invincibleFlickerTime +
+      (go.Spaceship.invincibleFlickerTime/2)
+
+  spaceship._timeAlive = elapsedTime;
+  spaceship.decompose();
+  expect(spaceship._hidden).toBe(true);
+});
+
