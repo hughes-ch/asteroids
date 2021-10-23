@@ -278,6 +278,8 @@ test('Calculate rotation amount in portrait', () => {
   controller._handleOrientationEvent(event1);
   expect(queue.dequeue().rotate).toEqual(intf.Control.rotateFullCw);
 
+  controller._currentControlState.windowSize = [10, 100];
+  
   let event2 = {
     timeStamp: 16000000,
     beta: 10,
