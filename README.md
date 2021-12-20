@@ -1,9 +1,11 @@
-[![hughes-ch](https://circleci.com/gh/hughes-ch/asteroids.svg?style=shield)](https://app.circleci.com/pipelines/github/hughes-ch/asteroids)
-
-# Asteroids
+<h1 align="center">
+    <img width="100%" src="api/src/static/img/logo-reduced-text.png" alt=""><br>
+</h1>
 A single page web app implementation of the classic game of Asteroids.
 
 The game itself is written in JavaScript. The backend is managed by Python's Flask framework. The app is hosted on Heroku and any pushes to main are automatically deployed.
+
+Want to play? Find the game [here](https://asteroids.chrishughesdev.com). You can also find an overview of the features of the game [here](https://blog.chrishughesdev.com/post/asteroids/0).
 
 ## Project Organization
 This project's been designed so that the Flask application and Javascript are side-by-side:
