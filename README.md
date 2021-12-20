@@ -5,7 +5,7 @@ A single page web app implementation of the classic game of Asteroids.
 
 The game itself is written in JavaScript. The backend is managed by Python's Flask framework. The app is hosted on Heroku and any pushes to main are automatically deployed.
 
-Want to play? Find the game [here](https://asteroids.chrishughesdev.com). You can also find an overview of the features of the game [here](https://blog.chrishughesdev.com/post/asteroids/0).
+Want to play? Find the game [here](https://asteroids.chrishughesdev.com). You can also find an overview of the features of the game [here](https://blog.chrishughesdev.com/post/asteroids/).
 
 ## Project Organization
 This project's been designed so that the Flask application and Javascript are side-by-side:
