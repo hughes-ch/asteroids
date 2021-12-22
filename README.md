@@ -7,6 +7,10 @@ The game itself is written in JavaScript. The backend is managed by Python's Fla
 
 Want to play? Find the game [here](https://asteroids.chrishughesdev.com). You can also find an overview of the features of the game [here](https://blog.chrishughesdev.com/post/asteroids/).
 
+If you don't have time to spare, here's a quick demo:
+
+https://user-images.githubusercontent.com/17994407/147150203-1cf97542-91f2-4201-9927-3f5e9fbe6b06.mp4
+
 ## Project Organization
 This project's been designed so that the Flask application and Javascript are side-by-side:
 
