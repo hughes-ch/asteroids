@@ -15,13 +15,14 @@
   },
   "scripts": {
     "api-test": "yarn build && pytest -v --cov=api/src --cov-report=term-missing",
-    "api-install": "pip install -r requirements.txt",
-    "build": "webpack",
+    "api-install": "python3 -m pip install -r requirements.txt",
+    "build": "yarn api-install && webpack",
     "db-init": "export FLASK_APP=api/src && flask db-init",
     "db-add": "export FLASK_APP=api/src && flask db-add",
     "debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
     "test": "jest --coverage",
-    "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0 --cert=adhoc"
+    "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0 -p 3000",
+    "host": "yarn build && export FLASK_APP=api/src && flask run"
   },
   "babel": {
     "presets": [

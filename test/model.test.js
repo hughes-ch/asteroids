@@ -682,40 +682,28 @@ test('Test only one POST', () => {
 });
 
 test('Test POST data and response', async () => {
+  // This feature has been stubbed out. Make sure it stays that way.
   jest.restoreAllMocks();
   fetchMock.enableMocks();
 
   let name = 'name';
   let score = 100;
-  let expectedData = {
-    name: name,
-    score: score,
-  };
-  fetch.mockResponseOnce(JSON.stringify(expectedData));
-  
   let fakeToken = 'faketoken'
   let mockToken = jest.spyOn(
     model.HighScoreScreenModel.prototype,
     '_getUserToken')
       .mockImplementation(() => fakeToken);
 
-  
   let keeper = new intf.ScoreKeeper();
   let scoreModel = new model.HighScoreScreenModel(keeper);
 
   await scoreModel._saveHighScore('name', 100);
-  expect(fetch).toHaveBeenCalledWith(
-    `/api/${fakeToken}/scores`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(expectedData),
-    });
+  expect(fetch).not.toHaveBeenCalled();
 
   fetch.resetMocks();
   const flushPromises = () => new Promise(setImmediate);
   await flushPromises();
-  expect(scoreModel._fetchedScores).toEqual(expectedData);
+  expect(scoreModel._fetchedScores).toEqual([]);
 });
 
 test('Test POST when server returns error', async () => {

@@ -586,9 +586,7 @@ export class HighScoreScreenModel extends BaseStateModel {
    * @return {Promise}  
    */
   async _fetchScores() {
-    let token = this._getUserToken();
-    let scores = await fetch(`/api/${token}/scores`);
-    return scores.json();
+    return [];
   }
 
   /**
@@ -763,21 +761,7 @@ export class HighScoreScreenModel extends BaseStateModel {
    * @return {undefined}
    */
   async _postToDb(name, score) {
-    const data = {
-      'name': name,
-      'score': score,
-    };
-
-    const token = this._getUserToken();
-    let response = await fetch(
-      `/api/${token}/scores`,
-      {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-
-    return response.json(); 
+    return [];
   }
 
   /**

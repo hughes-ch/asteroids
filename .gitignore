@@ -112,6 +112,7 @@ env.bak/
 venv.bak/
 javascript-asteroids/
 this
+asteroids/
 
 # Spyder project settings
 .spyderproject
