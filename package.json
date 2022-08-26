@@ -20,7 +20,8 @@
     "db-init": "export FLASK_APP=api/src && flask db-init",
     "db-add": "export FLASK_APP=api/src && flask db-add",
     "debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
-    "test": "jest --coverage",
+    "js-test": "jest --coverage",
+    "test": "yarn js-test && yarn api-test",
     "start-flask": "yarn build && export FLASK_APP=api/src && export FLASK_ENV='development' && flask run --host 0.0.0.0 -p 3000",
     "host": "yarn build && export FLASK_APP=api/src && flask run"
   },

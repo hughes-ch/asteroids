@@ -9,7 +9,6 @@ import pytest
 import tempfile
 
 from src import create_app
-from src.db import db, Score
 from src.settings import Settings
 
 @pytest.fixture
@@ -20,10 +19,6 @@ def app():
 
     # Setup app
     app = create_app()
-    
-    with app.app_context():
-        db.create_all()
-        
     yield app
 
     # Cleanup
